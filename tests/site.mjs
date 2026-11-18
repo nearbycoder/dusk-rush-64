@@ -16,6 +16,8 @@ export async function verifyArcadeSite(rpc, evaluate, base) {
   await ready(
     'document.readyState==="complete" && typeof catalog!=="undefined"',
   );
+  assert(await evaluate('!performance.getEntriesByType("resource").some(r=>r.name.includes("/turntables/"))'),
+    "Opening the site downloaded the model rotations before interaction");
   assert(
     await evaluate(`(async () => {
     let seen = 0;
@@ -37,6 +39,33 @@ export async function verifyArcadeSite(rpc, evaluate, base) {
   })()`),
     "Garage selection and photography",
   );
+  assert(await evaluate(`(async()=>{
+    const sample=document.createElement("canvas"); sample.width=40; sample.height=18;
+    const ctx=sample.getContext("2d",{willReadFrequently:true});
+    const arrow=()=>turntable.dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowRight",bubbles:true}));
+    for(let id=0;id<30;id++){
+      selectCar(id); modelAngle("front"); const poses=new Set();
+      for(let i=0;i<24;i++){
+        arrow();
+        if(view) await byId("car-img").decode();
+        else {await rotationSheet.decode();showRotation();}
+        if(rotationIndex!==(i+1)%24 || turntable.getAttribute("aria-valuenow")!==String(rotationIndex*15))return false;
+        const image=view?byId("car-img"):rotation;
+        if(!view && (rotation.hidden || rotationSheet.naturalWidth!==rotation.width*6 || rotationSheet.naturalHeight!==rotation.height*4))return false;
+        ctx.drawImage(image,0,0,40,18);
+        let hash=0;for(const pixel of ctx.getImageData(0,0,40,18).data)hash=Math.imul(hash,31)+pixel|0;
+        poses.add(hash);
+      }
+      if(poses.size!==24)return false;
+    }
+    return true;
+  })()`), "Rotating all 30 models with the keyboard");
+  const handle = await evaluate(`(()=>{turntable.scrollIntoView({block:"center",behavior:"instant"});
+    const r=turntable.getBoundingClientRect();return {x:r.x+r.width*.4,y:r.y+r.height*.5,w:r.width};})()`);
+  await rpc("Input.dispatchMouseEvent", { type:"mousePressed", x:handle.x, y:handle.y, button:"left", clickCount:1 });
+  await rpc("Input.dispatchMouseEvent", { type:"mouseMoved", x:handle.x+handle.w*.27, y:handle.y, buttons:1 });
+  await rpc("Input.dispatchMouseEvent", { type:"mouseReleased", x:handle.x+handle.w*.27, y:handle.y, button:"left" });
+  await ready("rotationIndex>0 && !turnDrag && !rotation.hidden");
   assert(
     await evaluate(`(async () => {
     const selector=byId("track"), image=byId("course-photo");
@@ -128,6 +157,16 @@ export async function verifyArcadeSite(rpc, evaluate, base) {
       await evaluate("document.documentElement.scrollWidth<=innerWidth"),
       "Overflow at " + width,
     );
+    if (width === 390) {
+      await rpc("Emulation.setTouchEmulationEnabled", { enabled:true, maxTouchPoints:5 });
+      const p = await evaluate(`(()=>{turntable.scrollIntoView({block:"center",behavior:"instant"});
+        const r=turntable.getBoundingClientRect();return {x:r.x+r.width*.3,y:r.y+r.height*.55};})()`);
+      for (const [type,dx] of [["touchStart",0],["touchMove",70],["touchEnd",70]])
+        await rpc("Input.dispatchTouchEvent",{type,touchPoints:type==="touchEnd"?[]:[{x:p.x+dx,y:p.y,id:1}]});
+      await ready("rotationIndex>0 && !turnDrag");
+      assert(await evaluate("getComputedStyle(turntable).touchAction.includes('pan-y')"), "Vertical scrolling in showroom");
+      await rpc("Emulation.setTouchEmulationEnabled", { enabled:false });
+    }
   }
   await rpc("Emulation.setEmulatedMedia", {
     features: [{ name: "prefers-reduced-motion", value: "reduce" }],
@@ -143,7 +182,7 @@ export async function verifyArcadeSite(rpc, evaluate, base) {
   })()`);
   assert(offlineGame, "Standalone game download");
   console.log(
-    "Verified 90 showroom angles, 40 shortcuts, seven liveries, video, embedded and configured races, three phone layouts and the offline download at " +
+    "Verified 720 rotation views, 90 showroom photos, mouse and touch dragging, 40 shortcuts, seven liveries, video, embedded and configured races, three phone layouts and the offline download at " +
       url.href,
   );
 }

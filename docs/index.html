@@ -93,8 +93,8 @@
             <p>
               Thirty original machines share the grid. Look past the paint and
               you’ll find different wheelbases, rooflines and suspension setups.
-              Pick a class and inspect the bodywork. In the game, start with
-              factory paint or club stripes and earn five more liveries in the cups.
+              Pick a class, then drag the car to see its bodywork from every angle.
+              Each championship cup awards a new racing livery.
             </p>
           </header>
           <div
@@ -105,6 +105,8 @@
           ></div>
           <div class="showcase">
             <div class="stage">
+              <div id="turntable" role="slider" tabindex="0" aria-label="Rotate Spectre S"
+                aria-valuemin="0" aria-valuemax="345" aria-valuenow="0" aria-valuetext="Front three-quarter">
               <img
                 id="car-img"
                 src="media/showroom/12-front.webp"
@@ -112,7 +114,11 @@
                 height="410"
                 loading="lazy"
                 alt="Front three-quarter view of the Spectre S"
+                draggable="false"
               />
+              <canvas id="rotation-frame" width="630" height="287" hidden aria-hidden="true"></canvas>
+              <span class="rotation-hint" aria-hidden="true">↔ Drag to rotate</span>
+              </div>
               <div class="viewbar" role="group" aria-label="Model angle">
                 <button data-view="front" aria-pressed="true">Front ¾</button
                 ><button data-view="side" aria-pressed="false">Profile</button

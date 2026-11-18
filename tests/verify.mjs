@@ -1,5 +1,6 @@
 import { verifyEndurance } from "./endurance.mjs";
 import { verifyArcadeSite } from "./site.mjs";
+import { photographShowroomCar } from "./showroom.mjs";
 import { verifyMixedInputs } from "./mixed-inputs.mjs";
 import { verifyRaceFeedback } from "./race-feedback.mjs";
 import { verifyTouch } from "./touch.mjs";
@@ -205,6 +206,20 @@ async function tests() {
   await rpc("Runtime.enable");
   await rpc("Log.enable");
   await reload();
+  if (process.argv.includes("--photograph-showroom")) {
+    const media = path.join(root, "docs", "media");
+    await mkdir(path.join(media, "turntables"), { recursive: true });
+    for (let i = 0; i < 30; i++) {
+      const images = await evalJS("(" + photographShowroomCar.toString() + ")(" + i + ")");
+      for (const [name, data] of Object.entries(images)) {
+        assert(data.startsWith("data:image/webp;base64,"), name);
+        await writeFile(path.join(media, name + ".webp"), Buffer.from(data.split(",")[1], "base64"));
+      }
+    }
+    assert.deepEqual(errors, []);
+    console.log("Photographed all 30 models from 24 angles.");
+    return;
+  }
   const siteOption = process.argv.find((arg) => arg.startsWith("--site="));
   if (siteOption) {
     await verifyArcadeSite(rpc, evalJS, siteOption.slice(7));

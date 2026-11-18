@@ -413,33 +413,70 @@ h4 {
 .stage {
   position: relative;
   background: #292f35;
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-width: 0;
 }
-.stage img {
+#turntable {
+  position: relative;
+  width: 100%;
+  align-self: stretch;
+  display: grid;
+  align-items: center;
+  cursor: grab;
+  touch-action: pan-y pinch-zoom;
+  -webkit-user-select: none;
+  user-select: none;
+}
+#turntable:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: -4px;
+  z-index: 1;
+}
+#turntable.dragging { cursor: grabbing; }
+.stage img, .stage canvas {
   width: 100%;
   height: 100%;
   min-height: 240px;
   object-fit: cover;
+  pointer-events: none;
+}
+.stage canvas {
+  position: absolute;
+  inset: 0;
+}
+.rotation-hint {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  background: #15202fdc;
+  color: #fff5df;
+  padding: 5px 9px;
+  border-radius: 2px;
+  font: 600 11px/1.2 var(--mono, monospace);
+  pointer-events: none;
 }
 .viewbar {
-  display: flex;
-  gap: 3px;
-  position: absolute;
-  top: 11px;
-  left: 11px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: #58606a;
 }
 .viewbar button {
-  font-size: 10px;
-  padding: 6px 9px;
+  min-height: 35px;
+  font-size: 11px;
+  padding: 8px;
   color: #fff5df;
-  background: #15202fdc;
-  border: 1px solid #777d80;
+  background: #202b38;
+  border: 0;
 }
 .viewbar button[aria-pressed="true"] {
   background: var(--gold);
   color: #20242b;
   border-color: var(--gold);
+}
+@media (pointer: coarse) {
+  .viewbar button { min-width: 48px; min-height: 44px; }
 }
 .spec {
   padding: clamp(20px, 2.5vw, 40px);
@@ -975,7 +1012,7 @@ dialog video {
     border-top: 1px solid #4c5660;
     padding-left: 0;
   }
-  .stage img {
+  .stage img, .stage canvas {
     object-fit: contain;
   }
   .events > div {
@@ -1099,17 +1136,9 @@ dialog video {
   .control-grid {
     grid-template-columns: 1fr;
   }
-  .stage img {
+  .stage img, .stage canvas {
     min-height: 0;
     height: auto;
-  }
-  .viewbar {
-    top: 6px;
-    left: 6px;
-  }
-  .viewbar button {
-    padding: 4px 7px;
-    font-size: 9px;
   }
   .spec {
     padding: 18px;

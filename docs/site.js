@@ -10,6 +10,75 @@ const angleNames = {
   side: "Side profile",
   rear: "Rear three-quarter",
 };
+const turntable = byId("turntable"), rotation = byId("rotation-frame");
+const presetFrames = { front: 0, side: 3, rear: 6 };
+let rotationIndex = 0, rotationSheet, rotationSheetCar = -1, turnDrag;
+function describeRotation() {
+  turntable.setAttribute("aria-label", "Rotate " + cars[carId].name);
+  turntable.setAttribute("aria-valuenow", rotationIndex * 15);
+  turntable.setAttribute("aria-valuetext", angleNames[view] || (rotationIndex * 15 + " degrees from the starting view"));
+  for (const btn of document.querySelectorAll("[data-view]"))
+    btn.setAttribute("aria-pressed", btn.dataset.view === view);
+}
+function showRotation() {
+  if (view || rotationSheetCar !== carId || !rotationSheet?.naturalWidth) return;
+  const w = rotation.width, h = rotation.height;
+  rotation.getContext("2d").drawImage(rotationSheet, (rotationIndex % 6) * w,
+    Math.floor(rotationIndex / 6) * h, w, h, 0, 0, w, h);
+  rotation.hidden = false;
+}
+function rotateTo(index) {
+  rotationIndex = ((index % 24) + 24) % 24;
+  const preset = Object.keys(presetFrames).find((name) => presetFrames[name] === rotationIndex);
+  if (preset) return modelAngle(preset);
+  view = null;
+  describeRotation();
+  if (rotationSheetCar !== carId) {
+    const photo = new Image();
+    rotationSheet = photo;
+    rotationSheetCar = carId;
+    photo.onload = () => { if (photo === rotationSheet) showRotation(); };
+    photo.onerror = () => {
+      if (photo !== rotationSheet) return;
+      rotationSheetCar = -1;
+      modelAngle("front");
+    };
+    photo.src = "media/turntables/" + carId + ".webp";
+  }
+  showRotation();
+}
+function releaseTurntable() {
+  turnDrag = null;
+  turntable.classList.remove("dragging");
+}
+turntable.addEventListener("pointerdown", (event) => {
+  if (!event.isPrimary || event.button !== 0) return;
+  turnDrag = { id: event.pointerId, x: event.clientX, y: event.clientY, initial: rotationIndex };
+  turntable.setPointerCapture(event.pointerId);
+});
+turntable.addEventListener("pointermove", (event) => {
+  if (turnDrag?.id !== event.pointerId) return;
+  const dx = event.clientX - turnDrag.x, dy = event.clientY - turnDrag.y;
+  if (!turntable.classList.contains("dragging")) {
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 6) return;
+    if (Math.abs(dy) > Math.abs(dx)) return releaseTurntable();
+    turntable.classList.add("dragging");
+  }
+  const step = Math.max(11, turntable.clientWidth / 27);
+  rotateTo(turnDrag.initial + Math.round(dx / step));
+});
+for (const type of ["pointerup", "pointercancel", "lostpointercapture"])
+  turntable.addEventListener(type, (event) => {
+    if (turnDrag?.id === event.pointerId) releaseTurntable();
+  });
+window.addEventListener("blur", releaseTurntable);
+turntable.addEventListener("keydown", (event) => {
+  const positions = { ArrowLeft: rotationIndex - 1, ArrowDown: rotationIndex - 1,
+    ArrowRight: rotationIndex + 1, ArrowUp: rotationIndex + 1, Home: 0, End: 23 };
+  if (!(event.key in positions)) return;
+  event.preventDefault();
+  rotateTo(positions[event.key]);
+});
 function raceLink() {
   byId("setup-summary").textContent =
     cars[carId].name + " · " + tracks[trackId].name;
@@ -17,11 +86,12 @@ function raceLink() {
 }
 function modelAngle(value) {
   view = value;
+  rotationIndex = presetFrames[value];
+  rotation.hidden = true;
   const image = byId("car-img");
   image.src = "media/showroom/" + carId + "-" + value + ".webp";
   image.alt = angleNames[value] + " view of the " + cars[carId].name;
-  for (const btn of document.querySelectorAll("[data-view]"))
-    btn.setAttribute("aria-pressed", btn.dataset.view === value);
+  describeRotation();
 }
 function imageButton(id, label, path, select) {
   const btn = document.createElement("button"),
@@ -42,6 +112,7 @@ function selectCar(id) {
   const car = cars[id],
     strip = byId("car-strip");
   carId = id;
+  releaseTurntable();
   byId("car-name").textContent = car.name;
   byId("car-note").textContent = car.note;
   byId("car-class").textContent = car.group;
@@ -62,7 +133,7 @@ function selectCar(id) {
   }
   for (const btn of strip.children)
     btn.setAttribute("aria-pressed", Number(btn.dataset.id) === id);
-  modelAngle(view);
+  modelAngle(view || "front");
   raceLink();
 }
 for (const group of groups) {

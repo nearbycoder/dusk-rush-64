@@ -44,4 +44,6 @@ The revised courses start a new set of times and ghosts. The game carries settin
 
 ## GitHub Pages
 
-The site publishes from `docs/` on `main`. The scrolling arcade guide includes three showroom angles for each of the 30 cars, track photography and route maps for all 20 courses, a body-damage comparison, camera and control guides, and an on-demand embedded game. Press Start opens race setup full page. Selecting a vehicle and course carries that pair into Free Race. The showroom, track photographs and gameplay reel come from the game renderer.
+The site publishes from `docs/` on `main`. Drag any of the 30 cars through a full rotation, or focus the car and use the arrow keys. Each turntable loads when you first rotate that model. The arcade also includes track photography and route maps for all 20 courses, a body-damage comparison, camera and control guides, and an on-demand embedded game. Press Start opens race setup full page. Selecting a vehicle and course carries that pair into Free Race. The showroom, track photographs and gameplay reel come from the game renderer.
+
+Run `node tests/verify.mjs --photograph-showroom` to regenerate all 720 rotation views, the three high-resolution presets per car, the thumbnails and the matching Spectre S impact photograph from the current vehicle meshes.
