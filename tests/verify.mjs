@@ -1,3 +1,4 @@
+import { verifyRaceFeedback } from "./race-feedback.mjs";
 import { verifyTouch } from "./touch.mjs";
 import { raceConditions } from "./race-conditions.mjs";
 import { auditCourse } from "./world-audit.mjs";
@@ -66,6 +67,7 @@ async function evalJS(expression) {
 }
 async function shot(name) {
   await evalJS("renderWorld();drawUI();gl.finish()");
+  assert.equal(await evalJS("gl.getError()"),0,"WebGL error in "+name);
   let out = await rpc("Page.captureScreenshot", { format: "png" }),
     dest = path.join(root, "captures", name + ".png");
   await mkdir(path.dirname(dest), { recursive: true });
@@ -77,6 +79,49 @@ async function reload() {
   await rpc("Page.reload");
   await loaded;
   await evalJS("testMode=true");
+}
+async function verifyKeyboardMenus() {
+  await evalJS('testMode=true; change("title"); drawUI(); document.activeElement.blur()');
+  const key=async(code,key,modifiers=0)=>{
+    const windowsVirtualKeyCode={Tab:9,Enter:13,Escape:27}[code];
+    for(const type of ["keyDown","keyUp"])
+      await rpc("Input.dispatchKeyEvent",{type,code,key,modifiers,windowsVirtualKeyCode,
+        text: type==="keyDown" && code==="Enter" ? "\r" : undefined});
+    await evalJS("drawUI()");
+  };
+  await key("Tab","Tab");
+  const first=await evalJS("document.activeElement.dataset.action");
+  assert(first,"Tab did not focus a real menu control");
+  await key("Tab","Tab");
+  assert.notEqual(await evalJS("document.activeElement.dataset.action"),first);
+  await key("Tab","Tab",8);
+  assert.equal(await evalJS("document.activeElement.dataset.action"),first,"Shift-Tab did not go back");
+  await evalJS(`startRace();pause();drawUI();accessMenu.querySelector('[data-action="action0"]').focus()`);
+  await key("Enter","Enter");
+  assert.equal(await evalJS("screen"),"race");
+  await key("Escape","Escape"); assert.equal(await evalJS("screen"),"pause");
+}
+async function verifyDisplayRecovery() {
+  const signature=`JSON.stringify([routeId,elapsed,pl.s,pl.x,pl.gate,pl.lap,pl.damage,cam,score,
+    prefs.cups,vehicles.map(v=>[v.id,v.progress,v.cut])])`;
+  await evalJS(`Object.assign(prefs,structuredClone(defaults),{mode:1,cup:1});
+    startRace();countdown=0;for(let i=0;i<720;i++)step(dt,true);cam=2;renderWorld();drawUI();`);
+  const previous=await evalJS(signature);
+  await evalJS('window.testLoss=gl.getExtension("WEBGL_lose_context");testLoss.loseContext()');
+  for(let n=0;n<24 && !await evalJS("graphicsLost");n++)await delay(25);
+  assert(await evalJS('graphicsLost && err.querySelector("button") && accessMenu.inert'));
+  const loaded=new Promise(resolve=>loadComplete=resolve);
+  await evalJS('testLoss.restoreContext()');
+  let timeout;
+  try {
+    await Promise.race([loaded,new Promise((_,reject)=>timeout=setTimeout(()=>reject(Error("Graphics restore timed out")),12000))]);
+  } finally {clearTimeout(timeout)}
+  await evalJS("testMode=true;renderWorld();drawUI()");
+  assert.equal(await evalJS(signature),previous,"Context restoration changed the running race");
+  assert(await evalJS('screen==="pause" && !graphicsLost && gl.getError()===gl.NO_ERROR'));
+  await evalJS("pause();step(dt,true)");
+  assert.equal(await evalJS("screen"),"race");
+  console.log("Lost and restored WebGL2 during a cup race with its station, opponents and timing intact.");
 }
 async function tests() {
   let port;
@@ -99,6 +144,7 @@ async function tests() {
     let msg = JSON.parse(e.data);
     if (msg.method === "Page.loadEventFired") loadComplete?.();
     if (msg.id) waiting.get(msg.id)?.(msg);
+    if (msg.method === "Log.entryAdded" && /WebGL.*(?:INVALID_|OUT_OF_MEMORY)/i.test(msg.params.entry.text)) errors.push(msg.params.entry.text);
     if (msg.method === "Runtime.exceptionThrown")
       errors.push(msg.params.exceptionDetails.exception?.description);
     if (
@@ -109,10 +155,19 @@ async function tests() {
   };
   await rpc("Page.enable");
   await rpc("Runtime.enable");
+  await rpc("Log.enable");
   await reload();
   if (process.argv.includes("--touch")) {
     await verifyTouch(rpc, evalJS);
     assert.deepEqual(errors, []);
+    return;
+  }
+  if (process.argv.includes("--feedback")) {
+    await verifyDisplayRecovery();
+    await verifyKeyboardMenus();
+    assert(await evalJS("(" + verifyRaceFeedback.toString() + ")()"));
+    assert.deepEqual(errors, []);
+    console.log("Race feedback, scoring, time trials, liveries and audio passed.");
     return;
   }
   await shot("title");
@@ -300,10 +355,17 @@ async function tests() {
   console.log("Completed all five championship cups.");
 
   await evalJS(
-    "prefs.mode=2;prefs.track=0;startRace();for(let i=0;i<18000&&screen==='race';i++)step(dt,true)",
+    `prefs.mode=2;prefs.track=0;startRace();
+      for(let i=0;i<18000&&screen==="race";i++){
+        step(dt,true);clock+=dt;
+        if(pl.lap>=2 && i%3===0){renderWorld();recordFinishFrame()}
+      }`,
   );
   assert(await evalJS("results.best&&prefs.ghosts[0].length>200"));
   await shot("race-results");
+  await evalJS('beginReplay(); filmPaused=true; filmCursor=3.8; drawUI()');
+  assert.equal(await evalJS("screen"),"replay");
+  await shot("finish-replay");
   await reload();
   await evalJS("startRace();for(let i=0;i<380;i++)step(dt,true);renderWorld()");
   assert(
@@ -325,6 +387,9 @@ async function tests() {
   );
   assert(await evalJS("pl.damage[0]>.5"));
   await shot("body-deformation");
+  await evalJS('pause();openPhoto();photoYaw=.69;photoElevation=.26;photoDistance=5.3;drawUI()');
+  await shot("photo-mode");
+  await evalJS("leavePhoto();pause()");
   await evalJS(
     "pl.inv=pl.stun=0;pl.s=props[0].s+Math.sin(elapsed*.14+props[0].s)*6-3.5-cars[pl.id][0]/2-.4;pl.speed=65;step(dt);step(dt);for(let i=0;i<9;i++)step(dt)",
   );
@@ -379,6 +444,9 @@ async function tests() {
   await evalJS("keys.add('KeyW');window.dispatchEvent(new Event('blur'))");
   assert(await evalJS("screen==='pause'&&keys.size===0&&touches.size===0"));
   await verifyTouch(rpc, evalJS);
+  await verifyDisplayRecovery();
+  await verifyKeyboardMenus();
+  assert(await evalJS("(" + verifyRaceFeedback.toString() + ")()"));
   await rpc("Page.addScriptToEvaluateOnNewDocument", {
     source:
       "Object.defineProperty(window,'localStorage',{get(){throw new DOMException('Unavailable','SecurityError')}})",

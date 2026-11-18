@@ -125,6 +125,10 @@ export async function verifyTouch(rpc, evaluate) {
   await checkLayout("pause");
   await tap("action1");
   await checkLayout("settings");
+  await tap("guide"); await checkLayout("driving guide");
+  assert.equal(await evaluate("guideInputs[guideInput]"),"Touch");
+  await tap("method"); assert.equal(await evaluate("guideInputs[guideInput]"),"Gamepad");
+  await tap("closeGuide"); assert.equal(await evaluate("modal"),"settings");
   await tap("close");
   await tap("action0");
   const cancelTap = await point("recover");
