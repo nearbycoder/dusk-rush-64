@@ -269,11 +269,27 @@ export function verifyRaceFeedback() {
   startRace();
   mixRaceAudio();
   pause();
-  prefs.sound = false;
   check(
     audio && gain && audio.state !== "closed",
     "Audio graph failed to initialise",
   );
+  for (const [name, clip] of Object.entries(raceSamples)) {
+    for (let channel = 0; channel < clip.numberOfChannels; channel++) {
+      const samples = clip.getChannelData(channel);
+      const peak = samples.reduce((max, sample) => Math.max(max, Math.abs(sample)), 0);
+      check(peak > 0.05 && peak <= 1, name + " is silent, clipped or nonfinite");
+    }
+  }
+  const left = raceSamples.crowd.getChannelData(0), right = raceSamples.crowd.getChannelData(1);
+  check(left.some((v, i) => Math.abs(v - right[i]) > 0.1), "Crowd lost its stereo position");
+  cueTimes.clear();
+  pl.inv = 0;
+  hit(pl, 0, 150);
+  check(cueTimes.has("metal") && cueTimes.has("glass"), "Impact did not trigger panel and glass audio");
+  cabinetOptions().find(([name]) => name === "SOUND")[2]();
+  cabinetOptions().find(([name]) => name === "VOLUME")[2]();
+  raceCue("crowd", 1);
+  check(!prefs.sound && master.gain.value === 0 && !cueTimes.has("crowd"), "Changing volume unmuted the cabinet");
   check(gl.getError() === gl.NO_ERROR, "Race rendering error");
   return true;
 }
