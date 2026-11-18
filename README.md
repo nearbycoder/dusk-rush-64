@@ -34,7 +34,7 @@ Run `node tests/verify.mjs` with Node 22+ and Chrome installed. Set `CHROME` to 
 
 Run `node tests/verify.mjs --feedback` to check finish classification, replay frame order, ghost timing, livery unlocks, recorded splits, keyboard navigation and recovery from a lost WebGL context.
 
-Run `node tests/verify.mjs --touch` for the mobile checks alone. They exercise simultaneous steering and pedals, thumb slides, interrupted gestures, menu navigation, portrait and landscape layouts, and safe-area insets.
+Run `node tests/verify.mjs --touch` for the mobile checks alone. They exercise simultaneous steering and pedals, thumb slides, interrupted gestures, menu navigation, portrait and landscape layouts, and safe-area insets. The two iPhone screenshots in `captures/` show the published game during native Safari touch gestures in an iPhone 18 Pro simulator.
 
 For a real-time browser run, use `node tests/verify.mjs --endurance=120`. It rotates courses, cars, cameras and race rules, checks the finish film, and reports frame intervals over 50 ms. It completes the current race when the requested duration expires.
 

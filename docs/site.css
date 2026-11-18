@@ -822,38 +822,16 @@ h4 {
   padding: 4px;
   text-align: center;
 }
-.touch-pad {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 8px;
-  padding: 14px 12px;
+.phone-cockpit {
+  display: block;
   margin-bottom: 12px;
-  background: #101a24;
-  border: 1px solid #576474;
-  border-radius: 12px;
+  cursor: zoom-in;
 }
-.touch-pad > div {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 3px;
-}
-.touch-pad i {
-  display: inline-grid;
-  align-items: center;
-  justify-items: center;
-  min-width: 35px;
-  height: 30px;
-  padding-inline: 3px;
-  background: #303f4d;
-  border: 1px solid #677685;
-  border-radius: 4px;
-  color: var(--cyan);
-  font: 700 11px var(--mono);
-}
-.touch-pad div:last-child i:last-child {
-  color: #d2fb47;
-  border-color: currentColor;
+.phone-cockpit img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid #66727b;
 }
 .control-grid p {
   font-size: 14px;
@@ -996,9 +974,6 @@ dialog video {
     border-left: 0;
     border-top: 1px solid #4c5660;
     padding-left: 0;
-  }
-  .touch-pad {
-    max-width: 280px;
   }
   .stage img {
     object-fit: contain;
