@@ -34,6 +34,12 @@ export async function verifyTouch(rpc, evaluate) {
     const failures = await evaluate(`(() => {
       const issues = [], rects = buttons.map(b => ({ id:b.id, x:b.x*S, y:b.y*S, w:b.w*S, h:b.h*S }));
       for (const [i,b] of rects.entries()) {
+        const el=accessMenu.querySelector('[data-action="'+b.id+'"]');
+        if(el){
+          const r=el.getBoundingClientRect();
+          if(Math.abs(r.x-b.x)>.5 || Math.abs(r.y-b.y)>.5 || Math.abs(r.width-b.w)>.5 ||
+            Math.abs(r.height-b.h)>.5) issues.push(b.id+" spoken control position");
+        }
         const primary = ["KeyW","KeyS","ArrowLeft","ArrowRight"].includes(b.id), min = primary ? 60 : 44;
         if (b.w < min - .01 || b.h < min - .01 || b.x < safe.left-.01 || b.y < safe.top-.01 ||
             b.x+b.w > winW-safe.right+.01 || b.y+b.h > winH-safe.bottom+.01) issues.push(b.id + " bounds");
@@ -68,6 +74,16 @@ export async function verifyTouch(rpc, evaluate) {
   await tap("select");
   await tap("race");
   assert(await evaluate("screen==='race' && routeId===6 && touches.size===0"));
+  assert(await evaluate(`(()=>{
+    const activate=id=>accessMenu.querySelector('[data-action="'+id+'"]').click();
+    activate("KeyW");activate("ArrowLeft");
+    const held=control().gas===1 && control().steer===-1;
+    activate("ArrowRight");activate("ShiftLeft");
+    const slid=control().boost && control().gas===1 && control().steer===1;
+    activate("pause");
+    const released=touches.size===0 && screen==="pause";pause();drawUI();
+    return held && slid && released;
+  })()`), "Hands-free pedals, steering and pause release");
   await evaluate("countdown=0");
   const gas = await point("KeyW", 2),
     left = await point("ArrowLeft");

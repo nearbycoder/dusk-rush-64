@@ -28,6 +28,8 @@ A standard gamepad uses its left stick to steer, triggers to accelerate and brak
 
 On a touchscreen, steer with your left thumb and hold Gas with your right. Slide between the arrows to change direction, or from Gas to Boost or Drift to keep the throttle open. Hold Brake to slow down and reverse. Tap View to cycle cameras, Recover to return to the road, or the pause icon to open the menu.
 
+On touch devices, screen readers and switch controls can activate each pedal or steering direction once to hold it and again to release it. Pausing releases both controls. Menu buttons and replay controls expose the same screen positions as their artwork.
+
 ## Verification
 
 Run `node tests/verify.mjs` with Node 22+ and Chrome installed. Set `CHROME` to the browser executable if it is outside the detected locations. The test launches a temporary headless browser profile, exercises the fixed-timestep simulation and writes PNG screenshots to `captures/`. Each numbered car and track capture follows the order in the selectors. The suite also reads the uploaded WebGL triangles and checks the camera near plane and moving car bodies against the rendered courses. It runs all 20 tracks at each difficulty and completes all five cups.

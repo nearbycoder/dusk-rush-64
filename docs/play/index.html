@@ -64,6 +64,14 @@
         clip-path: inset(50%);
         white-space: nowrap;
       }
+      #access { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+      #access > * {
+        position: absolute; margin: 0; padding: 0; border: 0; outline: 0;
+        color: transparent; background: transparent; appearance: none;
+        overflow: hidden; white-space: nowrap; pointer-events: none; forced-color-adjust: none;
+      }
+      #access input::-webkit-slider-thumb { appearance: none; width: 1px; background: transparent; }
+      #access input::-moz-range-thumb { border: 0; background: transparent; }
       #err {
         position: absolute;
         inset:0; z-index:2; display:grid; align-content:center; justify-items:start;
@@ -85,7 +93,7 @@
         id="ui"
         aria-label="Dusk Rush ’64 arcade racing game. Tap the screen or use arrow keys and Enter to navigate."
       ></canvas>
-      <nav id="access" class="spoken" aria-label="Arcade controls"></nav>
+      <nav id="access" aria-label="Arcade controls"></nav>
       <div id="race-status" class="spoken" role="status" aria-live="polite"></div>
       <div id="err" role="alert"></div>
     </main>
@@ -10762,7 +10770,14 @@
       let accessScreen = "",
         accessIds = "",
         statusText = "";
+      const drivingNames = {
+        ArrowLeft: "Steer left", ArrowRight: "Steer right", KeyW: "Accelerate",
+        KeyS: "Brake and reverse", Space: "Drift", ShiftLeft: "Boost",
+        camera: "Change camera", recover: "Recover car", pause: "Pause race",
+      };
+      const latchSlot = (id) => id === "ArrowLeft" || id === "ArrowRight" ? "access-steer" : "access-pedal";
       function accessibleName(b) {
+        if (screen === "race" && drivingNames[b.id]) return drivingNames[b.id];
         if (b.description) return b.description;
         if (/^track[0-9]+$/.test(b.id)) return tracks[Number(b.id.slice(5))][0];
         if (/^mode[0-9]+$/.test(b.id)) return modes[Number(b.id.slice(4))];
@@ -10773,10 +10788,9 @@
       }
       function syncAccess() {
         const page = screen + "/" + modal;
-        // Driving has a dedicated keyboard mapping and one tab stop to open the race menu.
         const choices =
           screen === "race"
-            ? [{ id: "pause", description: "Pause race" }]
+            ? touchDevice ? buttons : [{ id: "pause", description: "Pause race" }]
             : buttons.filter((b) => b.fn);
         const ids = choices.map((b) => b.id).join("|");
         if (accessScreen !== page || ids !== accessIds) {
@@ -10788,6 +10802,8 @@
             const item = document.createElement(slider ? "input" : "button");
             item.type = slider ? "range" : "button";
             item.dataset.action = b.id;
+            if (screen === "race" && drivePads.has(b.id))
+              item.setAttribute("aria-description", "Activate to hold. Activate again to release.");
             if (slider) {
               item.min = "0";
               item.step = String(1 / replayHz);
@@ -10799,6 +10815,20 @@
         choices.forEach((b, i) => {
           const name = accessibleName(b),
             item = accessMenu.children[i];
+          // Give screen readers and voice-control taps the same physical targets as the artwork.
+          const old = item.hitRegion;
+          if (Number.isFinite(b.x) && (!old || old.x !== b.x || old.y !== b.y ||
+              old.w !== b.w || old.h !== b.h || old.scale !== S)) {
+            item.hitRegion = { x: b.x, y: b.y, w: b.w, h: b.h, scale: S };
+            item.style.left = b.x * S + "px";
+            item.style.top = b.y * S + "px";
+            item.style.width = b.w * S + "px";
+            item.style.height = b.h * S + "px";
+          }
+          if (screen === "race" && drivePads.has(b.id)) {
+            const pressed = String(touches.get(latchSlot(b.id)) === b.id);
+            if (item.getAttribute("aria-pressed") !== pressed) item.setAttribute("aria-pressed", pressed);
+          }
           if (b.id === "scrub") {
             item.max = String((filmCount - 1) / replayHz);
             item.value = String(Math.min(filmCursor, Number(item.max)));
@@ -10854,6 +10884,11 @@
       accessMenu.addEventListener("click", (e) => {
         const id = e.target.dataset.action;
         if (screen === "race" && id === "pause") pause();
+        else if (screen === "race" && drivePads.has(id)) {
+          const slot = latchSlot(id);
+          if (touches.get(slot) === id) touches.delete(slot);
+          else touches.set(slot, id);
+        }
         else buttons.find((b) => b.id === id)?.fn?.();
         drawUI();
       });
