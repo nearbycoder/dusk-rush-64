@@ -15,9 +15,11 @@
     />
     <meta
       property="og:description"
-      content="Steep streets. Big air. Play the full arcade racer in your browser."
+      content="Race seven rivals over the hills of San Francisco. Thirty hand-built car designs, twenty courses and a finish camera you can rewind."
     />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://nearbycoder.github.io/dusk-rush-64/" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta
       property="og:image"
       content="https://nearbycoder.github.io/dusk-rush-64/media/cabinet-scene.webp"
@@ -91,7 +93,8 @@
             <p>
               Thirty original machines share the grid. Look past the paint and
               you’ll find different wheelbases, rooflines and suspension setups.
-              Pick a class and inspect the bodywork.
+              Pick a class and inspect the bodywork. In the game, start with
+              factory paint or club stripes and earn five more liveries in the cups.
             </p>
           </header>
           <div
@@ -211,6 +214,25 @@
               </p>
             </article>
           </div>
+          <div class="damage paint-booth">
+            <div>
+              <p class="over">Championship paint booth</p>
+              <h3>Hammerhead V8.</h3>
+              <label for="paint-sample">Racing livery</label>
+              <select id="paint-sample">
+                <option>Factory</option>
+                <option>Club stripes</option>
+                <option selected>Offset</option>
+                <option>Coastline</option>
+                <option>Crosswind</option>
+                <option>Chequer</option>
+                <option>Flash</option>
+              </select>
+              <p id="paint-unlock" aria-live="polite">Finish the City Lights Cup to unlock Offset.</p>
+            </div>
+            <img id="paint-img" src="media/liveries/2.webp" loading="lazy"
+              width="900" height="410" alt="Hammerhead V8 in the Offset racing livery" />
+          </div>
         </div>
       </section>
 
@@ -251,15 +273,22 @@
                 <option>Golden Span</option></select
               ><svg
                 viewBox="0 0 300 190"
-                aria-label="Selected route and start position"
+                aria-label="Course map with the start line and both shortcuts"
                 role="img"
               >
                 <polyline id="route-shadow"></polyline>
                 <polyline id="route"></polyline>
+                <polyline id="branch-0" class="branch"></polyline>
+                <polyline id="branch-1" class="branch"></polyline>
                 <circle id="start" r="4"></circle>
                 <circle id="racer" r="3"></circle>
               </svg>
               <p id="feature">Main deck · Service ramps</p>
+              <div class="cut-picker" role="group" aria-label="Trace a shortcut">
+                <button data-cut="0" aria-pressed="false">Maintenance Deck</button>
+                <button data-cut="1" aria-pressed="false">Service Road</button>
+              </div>
+              <p id="cut-detail" aria-live="polite">Choose a shortcut to trace its line.</p>
               <div class="map-data">
                 <b id="format">3 laps</b><b id="distance"></b>
               </div>
@@ -301,7 +330,7 @@
               <img
                 src="media/major-jump.webp"
                 width="900"
-                height="562"
+                height="508"
                 alt="Aftershock airborne over Twin Peaks with the landing road below"
                 loading="lazy"
               />
@@ -314,7 +343,7 @@
               <img
                 src="media/full-wreck.webp"
                 width="900"
-                height="562"
+                height="508"
                 alt="A fireball and flying debris after a heavy crash"
                 loading="lazy"
               />
@@ -331,7 +360,8 @@
               <p>
                 Front, rear, sides and roof take damage separately. A front-left
                 impact folds the bonnet and pushes the flank inward. Bumpers,
-                doors and wheels can break away.
+                doors and wheels can break away. Pause and open Photo mode
+                to orbit the wreck and save a picture of your own.
               </p>
               <div
                 class="damage-switch"
@@ -366,8 +396,8 @@
             </div>
             <p>
               Hold the handbrake to slide through a broad corner. Straighten up
-              before hitting boost. Brake to a near stop, then keep braking to
-              reverse.
+              and spend boost on the exit. The route arrow gives the distance
+              to the next jump, shortcut or bend.
             </p>
           </header>
           <div class="camera-guide">
@@ -476,28 +506,28 @@
               <dt>Free Race</dt>
               <dd>
                 Choose your car, track, difficulty and damage setting. Beat
-                seven rivals to the line.
+                seven rivals to the line, then rewind the last six seconds.
               </dd>
             </div>
             <div>
               <dt>Championship</dt>
               <dd>
-                Five cups, four rounds each. Finishing position earns points
-                toward the cup.
+                Five cups, four rounds each. Finishing position earns points.
+                Complete a cup to take its racing livery back to the garage.
               </dd>
             </div>
             <div>
               <dt>Time Attack</dt>
               <dd>
-                Race alone against a ghost recorded from your best completed
-                run.
+                Chase the car from your best completed run. Each checkpoint
+                shows how far ahead or behind that time you are.
               </dd>
             </div>
             <div>
               <dt>Wreck Run</dt>
               <dd>
-                Heavy damage is on. Score with speed, airtime and high-energy
-                collisions.
+                Heavy damage is on. Carry speed, land jumps and trade paint
+                to beat your high score on each course.
               </dd>
             </div>
             <div>

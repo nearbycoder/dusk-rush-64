@@ -525,7 +525,20 @@
           len = measureRoad(samples, open);
         }
         anchors = anchors.map((_, i) => samples[i * 40].s);
+        const runoff = open ? 72 : 0;
+        const finishPoint = roadSample(samples, len);
         function at(s) {
+          if (open && s > len) {
+            const d = Math.min(s - len, runoff + 12);
+            const grade = finishPoint.grade * Math.exp(-d / 14);
+            return {
+              ...finishPoint,
+              x: finishPoint.x - finishPoint.nz * d,
+              z: finishPoint.z + finishPoint.nx * d,
+              y: finishPoint.y + 14 * (finishPoint.grade - grade),
+              grade,
+            };
+          }
           return roadSample(samples, bounded(s));
         }
         let cuts = t[9].map((k, i) => {
@@ -622,6 +635,7 @@
         return {
           t,
           open,
+          runoff,
           len,
           at,
           cuts,
@@ -872,8 +886,9 @@
           if(material==10)c*=.48+.38*step(.45,fract(uv.x*12.))+.14*step(.78,fract(uv.y*7.));
           if(material==11){c*=.57+.24*smoothstep(.0,.65,uv.y)+.12*step(.53,fract(uv.x*6.))+.10*step(.84,fract(uv.y*3.));}
           if(material>=20&&material<=27){
-            float row=float(material-20);
-            c=texture(signs,vec2(clamp(uv.x,.002,.998),(row+clamp(1.-uv.y,.018,.982))*.125)).rgb;
+            float bank=floor(uv.y*.5);
+            float row=float(material-20)+8.*bank;
+            c=texture(signs,vec2(clamp(uv.x,.002,.998),(row+clamp(1.-uv.y+2.*bank,.018,.982))/16.)).rgb;
           }
           vec3 worldPos=eye-viewRay;
           if(material==12){
@@ -2519,8 +2534,8 @@
             },
             16,
             3,
-            c,
-            lacquer,
+            end > 0 && lost & 512 ? charcoal : c,
+            end > 0 && lost & 512 ? rubber : lacquer,
           );
           for (let side of [-1, 1]) {
             let edge = section(z, side);
@@ -2565,226 +2580,171 @@
         }
         const fh = deck(l),
           rh = deck(-l);
-        if (exotic) {
-          for (let s of [-1, 1]) {
-            fascia(
-              1,
-              s * 0.82,
-              s * 0.93,
-              fh * 0.69,
-              fh * 0.79,
-              rgb("#e49b38"),
-              optic,
-              0.033,
-            );
-          }
-        }
-
-        fascia(
-          1,
-          -0.53,
-          0.53,
-          sill + 0.034,
-          fh * 0.78,
-          recess,
-          meshGrille,
-          0.022,
-          0.07,
-        );
-        for (let side of [-1, 1]) {
-          fascia(
-            1,
-            side * 0.66,
-            side * 0.89,
-            sill + 0.045,
-            fh * 0.62,
-            recess,
-            meshGrille,
-            0.024,
-          );
-          fascia(
-            1,
-            side * 0.61,
-            side * 0.9,
-            fh * 0.67,
-            fh * 0.73,
-            rgb("#ff9536"),
-            optic,
-            0.03,
-          );
-        }
-        fascia(1, -0.2, 0.2, sill + 0.022, sill + 0.043, metal, alloy, 0.03);
-        if (split || id === 5 || id === 18) {
-          const lip = (x, z, y) => [
-            x * breadth(l),
-            y,
-            wrap(x * breadth(l), l) + z,
-          ];
-          for (let i = 0; i < 12; i++) {
-            let a = -0.99 + i * 0.165,
-              d = a + 0.165;
-            face(
-              b,
-              lip(a, -0.07, sill + 0.033),
-              lip(d, -0.07, sill + 0.033),
-              lip(d, 0.11, sill + 0.013),
-              lip(a, 0.11, sill + 0.013),
-              charcoal,
-              rubber,
-            );
-            face(
-              b,
-              lip(a, 0.11, sill + 0.013),
-              lip(d, 0.11, sill + 0.013),
-              lip(d, 0.107, sill - 0.02),
-              lip(a, 0.107, sill - 0.02),
-              recess,
-              rubber,
-            );
-          }
-          for (let k of [-1, 0, 1])
-            fascia(
-              1,
-              k * 0.33 - 0.012,
-              k * 0.33 + 0.012,
-              sill + 0.036,
-              fh * 0.74,
-              shade(c, 0.71),
-              lacquer,
-              0.036,
-            );
-        } else if (classic) {
-          for (let j = 0; j < 3; j++)
-            fascia(
-              1,
-              -0.48,
-              0.48,
-              fh * (0.51 + j * 0.088),
-              fh * (0.527 + j * 0.088),
-              metal,
-              alloy,
-              0.035,
-            );
-        }
-
-        if (split) {
-          // A continuous front valance with three recessed brake / radiator
-          // mouths. The return faces join the bumper skin to the grille.
-          const bottom = sill - 0.011,
-            top = fh * 0.92;
-          const bumper = (u, v, depth = 0) => {
-            let x = u * breadth(l) * 0.995;
-            return [
-              x,
-              mix(bottom, top, v),
-              wrap(x, l) + 0.062 + 0.045 * Math.sin(v * Math.PI) + depth,
-            ];
-          };
-          const patch = (a, d, lo, hi, color, mat) =>
-            panelGrid(
-              b,
-              (u, v) => bumper(mix(a, d, u), mix(lo, hi, v)),
-              Math.ceil((d - a) * 8),
-              2,
-              color,
-              mat,
-            );
-          patch(-1, 1, 0, 0.14, shade(c, 0.77), lacquer);
-          patch(-1, 1, 0.76, 0.94, c, lacquer);
-          for (let [a, d] of [
-            [-1, -0.89],
-            [-0.61, -0.51],
-            [0.51, 0.61],
-            [0.89, 1],
-          ])
-            patch(a, d, 0.14, 0.76, c, lacquer);
-          for (let [a, d] of [
-            [-0.89, -0.61],
-            [-0.51, 0.51],
-            [0.61, 0.89],
-          ]) {
-            let A = bumper(a, 0.14),
-              B = bumper(d, 0.14),
-              C = bumper(d, 0.76),
-              D = bumper(a, 0.76);
-            let ia = a + 0.034,
-              ib = d - 0.034,
-              inner = (u, v) => bumper(u, v, -0.058);
-            face(
-              b,
-              A,
-              B,
-              inner(ib, 0.25),
-              inner(ia, 0.25),
-              shade(c, 0.53),
-              lacquer,
-            );
-            face(b, A, D, inner(ia, 0.67), inner(ia, 0.25), charcoal, rubber);
-            face(b, B, C, inner(ib, 0.67), inner(ib, 0.25), charcoal, rubber);
-            face(b, D, C, inner(ib, 0.67), inner(ia, 0.67), recess, rubber);
-            panelGrid(
-              b,
-              (u, v) => inner(mix(ia, ib, u), mix(0.25, 0.67, v)),
-              6,
-              2,
-              recess,
-              meshGrille,
-            );
-            if (a < 0 && d > 0) {
-              for (let k of [-1, 0, 1]) {
-                let u = k * 0.26;
-                face(
-                  b,
-                  bumper(u - 0.008, 0.18, -0.012),
-                  bumper(u + 0.008, 0.18, -0.012),
-                  bumper(u + 0.008, 0.71, -0.012),
-                  bumper(u - 0.008, 0.71, -0.012),
-                  metal,
-                  alloy,
-                );
-              }
-            } else {
-              let u = (a + d) / 2;
-              face(
-                b,
-                bumper(u - 0.069, 0.48, -0.015),
-                bumper(u + 0.069, 0.48, -0.015),
-                bumper(u + 0.069, 0.64, -0.015),
-                bumper(u - 0.069, 0.64, -0.015),
-                rgb("#e3a350"),
-                optic,
-              );
+        finish(512, () => {
+          if (exotic) {
+            for (let s of [-1, 1]) {
+              fascia(1, s * 0.82, s * 0.93, fh * 0.69, fh * 0.79, rgb("#e49b38"), optic, 0.033);
             }
           }
-          for (let i = 0; i < 16; i++) {
-            let a = i / 8 - 1,
-              d = (i + 1) / 8 - 1;
-            let join = (u) => {
-              let x = u * breadth(l) * 0.995;
-              return pos(x, top + 0.024, l - 0.048);
-            };
-            face(
-              b,
-              bumper(a, 0.94),
-              bumper(d, 0.94),
-              join(d),
-              join(a),
-              c,
-              lacquer,
-            );
-          }
+
+          fascia(1, -0.53, 0.53, sill + 0.034, fh * 0.78, recess, meshGrille, 0.022, 0.07);
           for (let side of [-1, 1]) {
-            let q = section(l * 0.935, side);
-            face(
-              b,
-              bumper(side, 0),
-              bumper(side, 0.94),
-              q[2],
-              q[0],
-              c,
-              lacquer,
-            );
+            fascia(1, side * 0.66, side * 0.89, sill + 0.045, fh * 0.62, recess, meshGrille, 0.024);
+            fascia(1, side * 0.61, side * 0.9, fh * 0.67, fh * 0.73, rgb("#ff9536"), optic, 0.03);
           }
+          fascia(1, -0.2, 0.2, sill + 0.022, sill + 0.043, metal, alloy, 0.03);
+          if (split || id === 5 || id === 18) {
+            const lip = (x, z, y) => [x * breadth(l), y, wrap(x * breadth(l), l) + z];
+            for (let i = 0; i < 12; i++) {
+              let a = -0.99 + i * 0.165,
+                d = a + 0.165;
+              face(
+                b,
+                lip(a, -0.07, sill + 0.033),
+                lip(d, -0.07, sill + 0.033),
+                lip(d, 0.11, sill + 0.013),
+                lip(a, 0.11, sill + 0.013),
+                charcoal,
+                rubber,
+              );
+              face(
+                b,
+                lip(a, 0.11, sill + 0.013),
+                lip(d, 0.11, sill + 0.013),
+                lip(d, 0.107, sill - 0.02),
+                lip(a, 0.107, sill - 0.02),
+                recess,
+                rubber,
+              );
+            }
+            for (let k of [-1, 0, 1])
+              fascia(
+                1,
+                k * 0.33 - 0.012,
+                k * 0.33 + 0.012,
+                sill + 0.036,
+                fh * 0.74,
+                shade(c, 0.71),
+                lacquer,
+                0.036,
+              );
+          } else if (classic) {
+            for (let j = 0; j < 3; j++)
+              fascia(
+                1,
+                -0.48,
+                0.48,
+                fh * (0.51 + j * 0.088),
+                fh * (0.527 + j * 0.088),
+                metal,
+                alloy,
+                0.035,
+              );
+          }
+
+          if (split) {
+            // A continuous front valance with three recessed brake / radiator
+            // mouths. The return faces join the bumper skin to the grille.
+            const bottom = sill - 0.011,
+              top = fh * 0.92;
+            const bumper = (u, v, depth = 0) => {
+              let x = u * breadth(l) * 0.995;
+              return [
+                x,
+                mix(bottom, top, v),
+                wrap(x, l) + 0.062 + 0.045 * Math.sin(v * Math.PI) + depth,
+              ];
+            };
+            const patch = (a, d, lo, hi, color, mat) =>
+              panelGrid(
+                b,
+                (u, v) => bumper(mix(a, d, u), mix(lo, hi, v)),
+                Math.ceil((d - a) * 8),
+                2,
+                color,
+                mat,
+              );
+            patch(-1, 1, 0, 0.14, shade(c, 0.77), lacquer);
+            patch(-1, 1, 0.76, 0.94, c, lacquer);
+            for (let [a, d] of [
+              [-1, -0.89],
+              [-0.61, -0.51],
+              [0.51, 0.61],
+              [0.89, 1],
+            ])
+              patch(a, d, 0.14, 0.76, c, lacquer);
+            for (let [a, d] of [
+              [-0.89, -0.61],
+              [-0.51, 0.51],
+              [0.61, 0.89],
+            ]) {
+              let A = bumper(a, 0.14),
+                B = bumper(d, 0.14),
+                C = bumper(d, 0.76),
+                D = bumper(a, 0.76);
+              let ia = a + 0.034,
+                ib = d - 0.034,
+                inner = (u, v) => bumper(u, v, -0.058);
+              face(b, A, B, inner(ib, 0.25), inner(ia, 0.25), shade(c, 0.53), lacquer);
+              face(b, A, D, inner(ia, 0.67), inner(ia, 0.25), charcoal, rubber);
+              face(b, B, C, inner(ib, 0.67), inner(ib, 0.25), charcoal, rubber);
+              face(b, D, C, inner(ib, 0.67), inner(ia, 0.67), recess, rubber);
+              panelGrid(
+                b,
+                (u, v) => inner(mix(ia, ib, u), mix(0.25, 0.67, v)),
+                6,
+                2,
+                recess,
+                meshGrille,
+              );
+              if (a < 0 && d > 0) {
+                for (let k of [-1, 0, 1]) {
+                  let u = k * 0.26;
+                  face(
+                    b,
+                    bumper(u - 0.008, 0.18, -0.012),
+                    bumper(u + 0.008, 0.18, -0.012),
+                    bumper(u + 0.008, 0.71, -0.012),
+                    bumper(u - 0.008, 0.71, -0.012),
+                    metal,
+                    alloy,
+                  );
+                }
+              } else {
+                let u = (a + d) / 2;
+                face(
+                  b,
+                  bumper(u - 0.069, 0.48, -0.015),
+                  bumper(u + 0.069, 0.48, -0.015),
+                  bumper(u + 0.069, 0.64, -0.015),
+                  bumper(u - 0.069, 0.64, -0.015),
+                  rgb("#e3a350"),
+                  optic,
+                );
+              }
+            }
+            for (let i = 0; i < 16; i++) {
+              let a = i / 8 - 1,
+                d = (i + 1) / 8 - 1;
+              let join = (u) => {
+                let x = u * breadth(l) * 0.995;
+                return pos(x, top + 0.024, l - 0.048);
+              };
+              face(b, bumper(a, 0.94), bumper(d, 0.94), join(d), join(a), c, lacquer);
+            }
+            for (let side of [-1, 1]) {
+              let q = section(l * 0.935, side);
+              face(b, bumper(side, 0), bumper(side, 0.94), q[2], q[0], c, lacquer);
+            }
+          }
+        });
+        if (lost & 512) {
+          // The bumper cover leaves its crossmember and crush cans on the shell.
+          for (const side of [-1, 1]) {
+            box(b, side * w * 0.54, sill + 0.04, l * 0.96, 0.15, fh * 0.2, l * 0.13, charcoal, rubber);
+          }
+          fascia(1, -0.83, 0.83, fh * 0.34, fh * 0.55, metal, alloy, 0.052, 0.04);
+          fascia(1, -0.55, 0.55, fh * 0.56, fh * 0.79, recess, meshGrille, 0.025);
         }
         if (style !== "tractor") {
           finish(8, () => {
@@ -3274,19 +3234,68 @@
           }
         }
         if (lost & 4) {
-          box(b, 0, H * 0.48, l * 0.68, width * 0.91, 0.1, l * 0.58, charcoal);
-          for (let i = 0; i < 5; i++)
-            box(
+          // Build the exposed compartment to fit this particular bonnet opening.
+          const start = Math.min(front + 0.035, l * 0.88);
+          const end = l * 0.95;
+          const depth = end - start;
+          const station = (t) => mix(start, end, t);
+          const level = Math.min(deck(station(0.5)) * 0.78, H * 0.85);
+          const block = (x, y, z, wide, high, long, col, mat) =>
+            box(b, x * w, level * y, station(z), wide * w, high * level, long * depth, col, mat);
+          block(0, 0.49, 0.5, 1.42, 0.11, 1, recess, rubber);
+          for (const side of [-1, 1]) {
+            block(side * 0.63, 0.6, 0.48, 0.11, 0.29, 0.87, shade(c, 0.55), lacquer);
+            block(side * 0.47, 0.62, 0.22, 0.21, 0.24, 0.19, charcoal, rubber);
+            block(side * 0.47, 0.86, 0.22, 0.12, 0.035, 0.1, metal, alloy);
+          }
+          block(0, 0.61, 0.9, 1.07, 0.32, 0.085, recess, meshGrille);
+          block(0, 0.92, 0.9, 1.13, 0.045, 0.09, metal, alloy);
+          if (id === 17) {
+            block(0, 0.66, 0.47, 0.82, 0.3, 0.58, metal, alloy);
+            for (let n = 0; n < 7; n++)
+              block(-0.32 + n * 0.106, 0.96, 0.47, 0.037, 0.055, 0.49, charcoal, rubber);
+            for (const side of [-1, 1])
+              beam(
+                b,
+                [side * w * 0.28, level * 0.97, station(0.74)],
+                [side * w * 0.45, level * 0.84, station(0.84)],
+                0.045,
+                rgb("#e87834"),
+              );
+          } else if ([4, 12, 14, 15, 16, 20, 29].includes(id)) {
+            // Mid- and rear-engine machines carry their cooling and fuel hardware up front.
+            block(0.02, 0.64, 0.44, 0.79, 0.28, 0.52, rgb("#777a6a"), alloy);
+            for (const side of [-1, 1])
+              block(side * 0.23, 0.92, 0.44, 0.063, 0.036, 0.54, charcoal, rubber);
+            block(0.16, 0.92, 0.35, 0.13, 0.095, 0.1, rgb("#b9503c"), 0);
+            beam(
               b,
-              0,
-              H * 0.6,
-              l * (0.48 + i * 0.075),
-              width * 0.39,
-              0.067,
-              0.043,
+              [-w * 0.52, level * 0.91, station(0.18)],
+              [w * 0.52, level * 0.91, station(0.18)],
+              0.05,
               metal,
-              alloy,
             );
+          } else {
+            const vEngine = classic || style === "tourer" || style === "trophy";
+            const banks = vEngine ? [-0.25, 0.25] : [-0.08];
+            block(0, 0.56, 0.48, 0.82, 0.29, 0.63, charcoal, rubber);
+            for (const bank of banks) {
+              block(
+                bank,
+                0.83,
+                0.47,
+                vEngine ? 0.32 : 0.55,
+                0.15,
+                0.53,
+                vEngine ? rgb("#a04734") : rgb("#5b6772"),
+                0,
+              );
+              for (let rib = 0; rib < 4; rib++)
+                block(bank, 0.98, 0.27 + rib * 0.13, vEngine ? 0.24 : 0.43, 0.025, 0.026, metal, alloy);
+            }
+            block(vEngine ? 0 : 0.36, 0.79, 0.46, 0.21, 0.24, 0.48, metal, alloy);
+            block(-0.43, 0.8, 0.73, 0.24, 0.18, 0.18, recess, rubber);
+          }
         }
         if (["wing", "duck", "tunnel"].includes(closure))
           finish(16, () => {
@@ -3943,7 +3952,25 @@
         for (let axle = 0; axle < 2; axle++)
           for (let s of [-1, 1]) {
             const bit = axle ? (s > 0 ? 256 : 128) : s > 0 ? 32 : 64;
-            if (lost & bit) continue;
+            if (lost & bit) {
+              // The rotor, studs and knuckle stay on the car when the rim departs.
+              const at = axle === 0 ? gear.front : gear.rear;
+              const disc = (angle, radius, offset) => [
+                s * (gear.x + offset), r + Math.sin(angle) * radius, at + Math.cos(angle) * radius,
+              ];
+              for (let i = 0; i < 12; i++) {
+                const a = TAU * i / 12, z = TAU * (i + 1) / 12;
+                face(b, disc(a, r * 0.46, 0.01), disc(z, r * 0.46, 0.01),
+                  disc(z, r * 0.46, 0.042), disc(a, r * 0.46, 0.042), charcoal, rubber);
+                face(b, disc(a, r * 0.46, 0.042), disc(z, r * 0.46, 0.042),
+                  disc(z, r * 0.14, 0.042), disc(a, r * 0.14, 0.042), metal, alloy);
+              }
+              for (let i = 0; i < 5; i++) {
+                const [x, y, z] = disc(i * TAU / 5, r * 0.19, 0.055);
+                box(b, x, y - 0.012, z, 0.033, 0.024, 0.024, charcoal);
+              }
+              continue;
+            }
             wheelGroup = 1 + axle * 2 + (s > 0 ? 1 : 0);
             const makeWheel = () =>
               wheel(
@@ -3964,7 +3991,6 @@
         if (exotic || split) {
           for (let axle of [gear.front, gear.rear])
             for (let side of [-1, 1]) {
-              if (side === 1 && axle === gear.front && lost & 32) continue;
               box(
                 b,
                 side * (gear.x + r * 0.12),
@@ -5368,7 +5394,8 @@
       // Low-resolution screen-printed signs, generated once per course.
       const signTexture = gl.createTexture();
       const printShop = document.createElement("canvas");
-      printShop.width = 256; printShop.height=256;
+      printShop.width = 256;
+      printShop.height = 512;
       const localSigns = [
         ["CROWN AUTO", "GRANT COFFEE"],
         ["HYDE TRANSIT", "HILL BRAKE CO."],
@@ -5403,6 +5430,8 @@
           ["SHORTCUT", "#283731", "#cfe873"],
           [r.cuts[0].name.toUpperCase(), "#39583f", "#e9f5ab"],
           [r.cuts[1].name.toUpperCase(), "#39583f", "#e9f5ab"],
+          ...r.gates.slice(0, -1).map((_, i) => ["CHECK " + (i + 1) + " / 8", "#15565a", "#def7de"]),
+          ["START", "#cfed60", "#202724"],
         ];
         sheets.forEach(([name, bg, fg], i) => {
           const y = i * 32;
@@ -5432,7 +5461,10 @@
           [x + w / 2, y + h, z],
           [x - w / 2, y + h, z],
           chalk,
-          20 + slot,
+          20 + (slot % 8),
+          1,
+          slot >= 8 ? 3 : 1,
+          slot >= 8 ? 2 : 0,
         );
       }
       printCourseSigns(routes[0]);
@@ -5885,13 +5917,6 @@
             strip(b, p, r.at(s + 0.15), -w, w, 0.035, metal);
             local(p);
           }
-          if (i === 1 || (r.open && i === n - 3)) {
-            for (let v of [-1, 1]) box(b, v * (w + 0.2), 0, 0, 0.55, 8, 0.55, "#35353d");
-            if (box(b, 0, 7, 0, w * 2 + 1, 1.6, 0.7, "#344044")) {
-              signFace(b, -w * 0.51, 7.04, -0.365, w, 1.51, 0);
-              signFace(b, w * 0.51, 7.04, -0.365, w, 1.51, r.open && i === 1 ? 2 : 1);
-            }
-          }
           if (
             ["tram", "market", "avenue", "rain"].includes(theme) &&
             i % 45 === 21 &&
@@ -6051,6 +6076,86 @@
           }
           sectors.push({ ...sectorMesh(b), s: (c.a + c.b) / 2 });
         }
+        // Place the physical timing equipment on the same planes used by the race clock.
+        const timingGate = (station, cut, width, slot, overhead) => {
+          const fixture = [];
+          buildWalls.s = station;
+          buildWalls.cut = cut;
+          local(path(r, station, cut));
+          if (overhead) {
+            for (const side of [-1, 1])
+              box(fixture, side * (width + 0.45), 0, 0, 0.55, 8, 0.55, "#35353d");
+            if (box(fixture, 0, 7, 0, width * 2 + 1.45, 1.6, 0.7, "#344044")) {
+              signFace(fixture, -width * 0.5, 7.04, -0.365, width, 1.51, 0);
+              signFace(fixture, width * 0.5, 7.04, -0.365, width, 1.51, slot);
+            }
+          } else {
+            for (const side of [-1, 1]) {
+              const edge = side * (width + 0.85);
+              box(fixture, edge, -0.2, 0, 0.22, 3.9, 0.22, "#40565a");
+              if (box(fixture, edge + side * 0.78, 2.55, 0, 2.0, 0.85, 0.14, "#15565a"))
+                signFace(fixture, edge + side * 0.78, 2.57, -0.08, 1.96, 0.81, slot);
+            }
+          }
+          reset();
+          if (fixture.length) sectors.push({ ...sectorMesh(fixture), s: station });
+        };
+        timingGate(0, -1, w, r.open ? 15 : 1, true);
+        if (r.open) {
+          timingGate(r.len, -1, w, 1, true);
+          const apron = [];
+          for (let d = 0; d < r.runoff + 6; d += 6) {
+            const s = r.len + d,
+              p = r.at(s),
+              q = r.at(s + 6);
+            buildWalls.s = s;
+            buildWalls.pavement = true;
+            strip(apron, p, q, -w, w, 0, road, 17);
+            buildWalls.pavement = false;
+            for (const side of [-1, 1]) {
+              strip(apron, p, q, side * (w - 0.42), side * (w - 0.22), 0.025, chalk);
+              local(p);
+              box(apron, side * (w + 0.32), -0.32, 3, 0.65, 1.2, 6.2, d % 12 ? "#cfb694" : "#ac5b44");
+              reset();
+            }
+            if (d % 12 === 0) strip(apron, p, r.at(s + 3), -0.09, 0.09, 0.026, line);
+          }
+          local(r.at(r.len + 5));
+          if (theme === "gauntlet") {
+            bridge(apron, 2, 58, w + 2.4, 33);
+          } else {
+            for (const side of [-1, 1]) {
+              for (let i = 0; i < 4; i++) {
+                const x = side * (w + 3.4),
+                  z = 9 + 13 * i;
+                box(apron, x, 0, z, 4.6, 4.0, 6.8, "#1f5359");
+                box(apron, x, 3.8, z, 5.8, 0.42, 8.0, "#c78651");
+                signFace(apron, x, 2.26, z - 3.42, 4.35, 1, 0);
+              }
+            }
+          }
+          local(r.at(r.len + r.runoff + 0.15));
+          for (let i = 0; i < 8; i++)
+            box(
+              apron,
+              w * ((i + 0.5) / 4 - 1),
+              -0.08,
+              0,
+              w / 4,
+              1.29,
+              0.62,
+              i % 2 ? "#ba6848" : "#e4c898",
+            );
+          reset();
+          sectors.push({ ...sectorMesh(apron), s: r.len });
+        }
+        r.gates.slice(0, -1).forEach((station, i) => {
+          if (!r.open && i % 2 === 0) return;
+          timingGate(station, -1, w, 8 + i, false);
+          r.cuts.forEach((cut, k) => {
+            if (station > cut.a && station < cut.b) timingGate(station, k, 3.6, 8 + i, false);
+          });
+        });
         buildWalls = null;
         // Painted start boxes and timing stripes follow the deck even on a hill.
         const paint = [];
@@ -6073,13 +6178,20 @@
             }
           }
         }
-        for (const s of r.open ? [0.1, r.len - 2.2] : [0.1]) {
-          const a = r.at(s),
-            end = r.at(s + 2);
-          const pt = (p, off) => [p.x + p.nx * off, p.y + 0.05, p.z + p.nz * off];
-          face(paint, pt(a, -w), pt(a, w), pt(end, w), pt(end, -w), chalk, 18, Math.round(w * 2), 2);
-        }
         sectors.push({ ...sectorMesh(paint), s: 0 });
+        for (const [first, last] of r.open
+          ? [
+              [0, 1.8],
+              [r.len - 1.8, r.len],
+            ]
+          : [[r.len - 0.9, 0.9]]) {
+          const a = r.at(first),
+            end = r.at(last),
+            stripe = [];
+          const pt = (p, off) => [p.x + p.nx * off, p.y + 0.05, p.z + p.nz * off];
+          face(stripe, pt(a, -w), pt(a, w), pt(end, w), pt(end, -w), chalk, 18, Math.round(w * 2), 2);
+          sectors.push({ ...sectorMesh(stripe), s: last });
+        }
       }
       // Local persistence with validation and storage failure isolation.
       const key = "dusk-rush64-v2",
@@ -6109,7 +6221,12 @@
         if (!route || !Array.isArray(tape) || tape.length < 2 || tape.length > 36002) return false;
         let previous = -1;
         for (const frame of tape) {
-          if (!Array.isArray(frame) || frame.length !== 6 || !frame.every(Number.isFinite))
+          if (
+            !Array.isArray(frame) ||
+            (frame.length !== 6 && frame.length !== 9) ||
+            !frame.every(Number.isFinite) ||
+            frame.slice(6).some((a) => Math.abs(a) > 7.9)
+          )
             return false;
           const [time, station, side, air, cut, lap] = frame;
           if (
@@ -6134,42 +6251,55 @@
       }
       function packGhost(tape) {
         if (packedGhosts.has(tape)) return packedGhosts.get(tape);
-        const bytes = new Uint8Array(tape.length * 14),
+        const pose = tape.some((frame) => frame.length === 9);
+        const stride = pose ? 20 : 14;
+        const bytes = new Uint8Array(tape.length * stride),
           data = new DataView(bytes.buffer);
-        tape.forEach(([time, s, x, air, cut, lap], i) => {
-          const k = i * 14;
+        tape.forEach(([time, s, x, air, cut, lap, yaw = 0, pitch = 0, roll = 0], i) => {
+          const k = i * stride;
           data.setFloat32(k, time, true);
           data.setFloat32(k + 4, s, true);
           data.setInt16(k + 8, Math.round(x * 128), true);
           data.setUint16(k + 10, Math.round(air * 128), true);
           data.setInt8(k + 12, cut);
           data.setUint8(k + 13, lap);
+          if (pose) {
+            data.setInt16(k + 14, Math.round(yaw * 4096), true);
+            data.setInt16(k + 16, Math.round(pitch * 4096), true);
+            data.setInt16(k + 18, Math.round(roll * 4096), true);
+          }
         });
         let binary = "";
         for (let i = 0; i < bytes.length; i += 8192)
           binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
-        const encoded = "g1." + btoa(binary);
+        const encoded = (pose ? "g2." : "g1.") + btoa(binary);
         packedGhosts.set(tape, encoded);
         return encoded;
       }
       function readGhost(value, route) {
         try {
           if (Array.isArray(value)) return validTape(value, route) ? value : null;
-          if (typeof value !== "string" || !value.startsWith("g1.") || value.length > 680000)
+          if (typeof value !== "string" || !/^g[12]\./.test(value) || value.length > 960100)
             return null;
+          const stride = value.startsWith("g2.") ? 20 : 14;
           const bytes = Uint8Array.from(atob(value.slice(3)), (c) => c.charCodeAt(0));
-          if (bytes.length % 14) return null;
+          if (bytes.length % stride) return null;
           const d = new DataView(bytes.buffer),
             tape = [];
-          for (let k = 0; k < bytes.length; k += 14)
-            tape.push([
+          for (let k = 0; k < bytes.length; k += stride) {
+            const frame = [
               d.getFloat32(k, true),
               d.getFloat32(k + 4, true),
               d.getInt16(k + 8, true) / 128,
               d.getUint16(k + 10, true) / 128,
               d.getInt8(k + 12),
               d.getUint8(k + 13),
-            ]);
+            ];
+            if (stride === 20) {
+              for (const offset of [14, 16, 18]) frame.push(d.getInt16(k + offset, true) / 4096);
+            }
+            tape.push(frame);
+          }
           if (!validTape(tape, route)) return null;
           packedGhosts.set(tape, value);
           return tape;
@@ -6530,7 +6660,7 @@
         callTime = 0;
         results = null;
         ghostInterval = 6;
-        ghostTape = runMode === 2 ? [[0, pl.s, pl.x, 0, -1, 0]] : [];
+        ghostTape = runMode === 2 ? [ghostFrame(pl, 0)] : [];
         ghostPlayback = runMode === 2 ? prefs.ghosts[routeId] || [] : [];
         tick = 0;
         screen = "race";
@@ -6552,6 +6682,25 @@
           x,
           z,
           y: floor + v.air + (v.cut < 0 ? rampHeight(rte, v.s) : 0),
+        };
+      }
+      function ghostFrame(v, time, s = v.s, lap = v.lap) {
+        const pose = bodyAngles(v, path(rte, s, v.cut));
+        return [time, s, v.x, v.air, v.cut, lap, v.drift, pose.pitch, pose.roll];
+      }
+      function ghostView(a, b, t) {
+        const sample = (p) => point({ s: p[1], x: p[2], air: p[3], cut: p[4] });
+        const from = sample(a),
+          to = sample(b);
+        // Lateral coordinates have different origins on a branch and its main road.
+        const yaw = from.ang + (a[6] || 0);
+        return {
+          x: mix(from.x, to.x, t),
+          y: mix(from.y, to.y, t),
+          z: mix(from.z, to.z, t),
+          a: yaw + angleDelta(yaw, to.ang + (b[6] || 0)) * t,
+          pitch: mix(a[7] ?? Math.atan(from.grade || 0), b[7] ?? Math.atan(to.grade || 0), t),
+          roll: mix(a[8] || 0, b[8] || 0, t),
         };
       }
       function notice(msg) {
@@ -6641,7 +6790,7 @@
               [32, 256],
               [32, 64, 128, 256],
             ][zone];
-            mask = wheels.find((bit) => !(v.lost & bit)) || mask;
+            mask = zone === 0 && !(v.lost & 512) ? 512 : wheels.find((bit) => !(v.lost & bit)) || mask;
           }
           if (detachPart(v, mask)) spawnFX(v, 8, "glass", zone);
         }
@@ -6649,7 +6798,8 @@
           runDamage &&
           ((d[zone] >= 1 && energy > 21) || d.reduce((a, b) => a + b, 0) > 2.5)
         ) {
-          for (const part of zone === 2 || zone === 0 ? [1, 64, 8] : [2, 256, 4]) detachPart(v, part);
+          for (const part of zone === 0 ? [512, 1, 64] : zone === 2 ? [1, 64, 8] : [2, 256, 4])
+            detachPart(v, part);
           v.blast = 1;
           v.recovery = 2.6;
           v.tumble = zone === 2 ? -1 : 1;
@@ -6767,7 +6917,7 @@
           if (runMode === 2 && ghostTape.length) {
             const before = ghostTape[ghostTape.length - 1].slice();
             before[0] = elapsed + v.penalty - 0.01;
-            ghostTape.push(before, [elapsed + v.penalty, v.s, v.x, 0, v.cut, v.lap]);
+            ghostTape.push(before, ghostFrame(v, elapsed + v.penalty));
           }
         }
         if (v === pl && runMode !== 4) notice("RECOVERED  +3 SEC");
@@ -6986,8 +7136,12 @@
         if (best) {
           prefs.records[recKey] = v.finish;
           if (runMode === 2) {
-            const last = [v.finish, rte.len, v.x, v.air, v.cut, Math.max(0, v.lap - 1)];
-            prefs.ghosts[routeId] = ghostTape.concat([last]);
+            const last = ghostFrame(v, v.finish, rte.len, Math.max(0, v.lap - 1));
+            // The official stripe is interpolated inside the final physics tick.
+            const tape = ghostTape.slice();
+            while (tape.length && tape[tape.length - 1][0] >= v.finish) tape.pop();
+            tape.push(last);
+            prefs.ghosts[routeId] = tape;
             prefs.timeTrials[routeId] = {
               car: pl.id,
               official: true,
@@ -7051,7 +7205,7 @@
         v.s = clamp(
           v.s + (v.speed * h) / (branch?.ratio || 1),
           branch?.a || 0,
-          branch?.b || rte.len - 0.025,
+          branch?.b || rte.len + (runMode === 4 ? rte.runoff : 0) - 0.025,
         );
         v.x = clamp(v.x + v.side * h, -w + margin, w - margin);
         if (v.tumble) {
@@ -7075,7 +7229,28 @@
         v.wheelAngle = mod((v.wheelAngle || 0) + (v.speed * h) / runningGear(v.id).radius, TAU);
       }
       function drive(v, u, h) {
-        if (v.finish) return;
+        if (v.finish) {
+          if (!rte.open || (v.speed <= 0 && v.air <= 0)) return;
+          const start = motionState(v),
+            before = point(v);
+          v.speed = Math.max(0, v.speed - (12 + v.speed * 1.35) * h);
+          v.s = Math.min(rte.len + rte.runoff - vehicleBounds(v.id).hl - 1, v.s + v.speed * h);
+          v.braking = true;
+          v.boosting = false;
+          v.drift *= Math.exp(-4 * h);
+          v.wheelAngle = mod((v.wheelAngle || 0) + (v.speed * h) / runningGear(v.id).radius, TAU);
+          if (v.air > 0) {
+            v.vy -= 16 * h;
+            v.air = Math.max(0, before.y + v.vy * h - point({ ...v, air: 0 }).y);
+          }
+          if (v.air <= 0) {
+            v.vy = 0;
+            v.pitch *= Math.exp(-4 * h);
+            v.roll *= Math.exp(-4 * h);
+          }
+          resolveWalls(v, start, h, false);
+          return;
+        }
         if (v.recovery > 0) {
           if (v.blast) tumbleWreck(v, h);
           const wreck = hull(v);
@@ -7164,8 +7339,8 @@
           h *
           (v.cut >= 0 ? 1 / Math.max(0.4, rte.cuts[v.cut].ratio) : 1) *
           (u.hand ? 0.97 : 1);
-        if (runMode === 4 && rte.open && v.s >= rte.len - 0.001) {
-          v.s = rte.len - 0.001;
+        if (runMode === 4 && rte.open && v.s >= rte.len + rte.runoff) {
+          v.s = rte.len + rte.runoff;
           v.speed = Math.min(0, v.speed);
         }
         if (v.s < 0) v.speed = Math.max(0, v.speed);
@@ -7274,7 +7449,7 @@
             tick % 12 === 0 &&
             Math.abs(v.x) < w - 1.4
           ) {
-            v.safe = clamp(v.s, 0, rte.len - 0.02);
+            v.safe = clamp(v.s, 0, rte.len + (runMode === 4 ? rte.runoff : 0) - 0.02);
             v.safeX = v.x;
             v.safeCut = v.cut;
           }
@@ -7339,6 +7514,10 @@
           }
         }
         if (v.s >= rte.len) {
+          if (rte.open && runMode === 4) {
+            v.progress = rte.len;
+            return;
+          }
           if (v.gate === 8) {
             v.lap++;
             if (runMode !== 4 && (rte.open || v.lap >= 3)) {
@@ -7515,11 +7694,7 @@
             ghostTape = ghostTape.filter((_, i) => i % 2 === 0);
             ghostInterval *= 2;
           }
-          ghostTape.push(
-            [elapsed + pl.penalty, pl.s, pl.x, pl.air, pl.cut, pl.lap].map(
-              (n) => Math.round(n * 100) / 100,
-            ),
-          );
+          ghostTape.push(ghostFrame(pl, elapsed + pl.penalty));
         }
         for (let p of fx) {
           p.x += p.vx * h;
@@ -8354,14 +8529,7 @@
             b2 = ghostPlayback[h],
             f = clamp((tapeTime - a[0]) / (b2[0] - a[0] || 1), 0, 1);
           if (tapeTime <= b2[0] || h < ghostPlayback.length - 1) {
-            let ghost = {
-              s: mix(a[5] * rte.len + a[1], b2[5] * rte.len + b2[1], f) - a[5] * rte.len,
-              x: mix(a[2], b2[2], f),
-              air: mix(a[3], b2[3], f),
-              cut: a[4],
-            };
-            let q = point(ghost);
-            ghostPose = { ...q, a: q.ang };
+            ghostPose = ghostView(a, b2, f);
             const recordedCar = prefs.timeTrials[routeId]?.car;
             const id = Number.isInteger(recordedCar) && cars[recordedCar] ? recordedCar : prefs.car;
             if (ghostCarId !== id) {
@@ -8750,9 +8918,11 @@
         }
         const road = trace(r.samples, !r.open);
         const shortcuts = r.cuts.map((c) => trace(c.nodes, false));
+        const runoff = r.runoff ? trace([r.at(r.len), r.at(r.len + r.runoff)], false) : null;
         map = {
           road,
           shortcuts,
+          runoff,
           width: maxX - minX,
           height: maxZ - minZ,
           cx: (maxX + minX) / 2,
@@ -8768,6 +8938,11 @@
         C.translate(x + w / 2 - k * map.cx, y + h / 2 + k * map.cz);
         C.scale(k, k);
         C.lineJoin = "round";
+        if (map.runoff) {
+          C.lineWidth = Math.max(1, thick * 0.6) / k;
+          C.strokeStyle = "#8a969c";
+          C.stroke(map.runoff);
+        }
         C.lineWidth = thick / k;
         C.strokeStyle = col;
         C.stroke(map.road);
@@ -9319,8 +9494,20 @@
         btn("back", "BACK", x, yy + 408, w, 38, () => change("title"));
         footer();
       }
+      let fullscreenError = false;
+      async function switchFullscreen() {
+        try {
+          if (document.fullscreenElement) await document.exitFullscreen();
+          else await document.documentElement.requestFullscreen();
+          fullscreenError = false;
+        } catch {
+          fullscreenError = true;
+        }
+        resize();
+        drawUI();
+      }
       function cabinetOptions() {
-        return [
+        const options = [
           [
             "SOUND",
             prefs.sound ? "On" : "Off",
@@ -9358,6 +9545,13 @@
             },
           ],
         ];
+        if (document.fullscreenEnabled)
+          options.push([
+            "FULL SCREEN",
+            fullscreenError ? "Try again" : document.fullscreenElement ? "On" : "Off",
+            switchFullscreen,
+          ]);
+        return options;
       }
       const guideInputs = ["Keyboard", "Touch", "Gamepad"];
       const guideRows = [
@@ -9468,10 +9662,9 @@
         rect(x - 22, y - 22, w + 44, 494, "#242628");
         heading("CABINET OPTIONS", "Settings", x, y + 15);
         let yy = y + 98;
-        cabinetOptions().forEach(([name, value, choose], i) =>
-          row(name, value, x, yy + i * 46, w, choose),
-        );
-        row("DRIVING GUIDE", "Controls", x, yy + 216, w, openGuide);
+        const options = cabinetOptions();
+        options.forEach(([name, value, choose], i) => row(name, value, x, yy + i * 46, w, choose));
+        row("DRIVING GUIDE", "Controls", x, yy + options.length * 46, w, openGuide);
         btn(
           "close",
           "DONE",
@@ -10589,7 +10782,7 @@
         if (graphicsLost) return;
         lastController = "keys";
         if (e.code === "Tab") return;
-        const onButton = accessMenu.contains(e.target);
+        const onButton = e.target instanceof Node && accessMenu.contains(e.target);
         if (
           e.target?.dataset?.action === "scrub" &&
           ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(e.code)
@@ -10679,11 +10872,17 @@
       addEventListener("keyup", (e) => keys.delete(e.code));
       addEventListener("blur", () => {
         clearControls();
+        waitForPadRelease = true;
+        padInBackground = true;
         if (screen === "race") pause();
+      });
+      addEventListener("focus", () => {
+        padInBackground = false;
       });
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) {
           clearControls();
+          waitForPadRelease = true;
           if (screen === "race") pause();
         }
       });
@@ -10787,27 +10986,41 @@
         drawUI();
       };
       ui.onpointercancel = ui.onlostpointercapture = releasePointer;
-      let padButtons = [];
+      let padButtons = [],
+        padInBackground = false,
+        waitForPadRelease = false;
       function gamepad() {
+        if (padInBackground || document.hidden) return;
         let p;
         try {
           p = Array.from(navigator.getGamepads?.() || []).find(Boolean);
         } catch {
-          padState = {};
-          return;
+          p = null;
         }
         if (!p) {
           padState = {};
+          padButtons = [];
+          waitForPadRelease = false;
           return;
         }
         let b = p.buttons.map((v) => v.pressed),
           press = (i) => b[i] && !padButtons[i],
           ax = p.axes[0] || 0;
+        if (waitForPadRelease) {
+          if (
+            b.some(Boolean) ||
+            Math.abs(ax) > 0.15 ||
+            p.buttons.some((button) => button.value > 0.12)
+          )
+            return;
+          waitForPadRelease = false;
+          padButtons = [];
+        }
         if (b.some(Boolean) || Math.abs(ax) > 0.15) lastController = "pad";
         padState = {
           steer: Math.abs(ax) > 0.12 ? ax : 0,
-          gas: p.buttons[7]?.value || +b[0],
-          brake: p.buttons[6]?.value || +b[1],
+          gas: p.buttons[7]?.value || (b[0] ? 1 : 0),
+          brake: p.buttons[6]?.value || (b[1] ? 1 : 0),
           boost: b[4],
           hand: b[2],
         };
@@ -10819,10 +11032,7 @@
           if (press(0)) activate();
           if (press(1)) inputBack();
           if (press(12) || press(13) || press(14) || press(15))
-            focus = mod(
-              focus + (press(12) || press(14) ? -1 : 1),
-              buttons.length || 1,
-            );
+            focus = mod(focus + (press(12) || press(14) ? -1 : 1), buttons.length || 1);
         }
         padButtons = b;
       }

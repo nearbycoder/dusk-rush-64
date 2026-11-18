@@ -636,6 +636,20 @@ h4 {
   stroke: #3c645d;
   stroke-width: 8;
 }
+.map-card .branch {
+  stroke:#ebce79;
+  stroke-width:1.75;
+  stroke-dasharray:3 3;
+}
+.map-card .branch.selected { stroke:#ffe57c; stroke-width:3.6; stroke-dasharray:none; }
+.cut-picker { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.cut-picker button {
+  padding:6px 10px; min-height:36px; border:1px dashed #8c9569; background:#13292b;
+  color:#e7e3b3; font:700 12px Arial,sans-serif; cursor:pointer;
+}
+.cut-picker button[aria-pressed="true"] { border-style:solid; border-color:#e7d281; color:#12262a; background:#e7d281; }
+#cut-detail { color:#d8e5d5; font-size:12px; margin:7px 0 0; min-height:1.4em; }
+@media(pointer:coarse) { .cut-picker button {min-height:44px;} }
 #start {
   fill: var(--gold);
   stroke: #20342e;
@@ -733,6 +747,21 @@ h4 {
 .damage img {
   width: 100%;
   height: auto;
+}
+.paint-booth label {
+  display: block;
+  margin: 18px 0 6px;
+  font: 700 12px var(--mono);
+  text-transform: uppercase;
+}
+.paint-booth select {
+  min-height: 44px;
+  min-width: 180px;
+  padding: 6px 10px;
+  font: 700 16px var(--mono);
+  border: 1px solid currentColor;
+  background: #fff3d8;
+  color: #282b2c;
 }
 .damage-switch {
   display: flex;
@@ -1166,6 +1195,9 @@ dialog video {
     grid-row: 1/5;
     height: 120px;
   }
+  .cut-picker, #cut-detail { grid-column:1/-1; }
+  .cut-picker { margin-top:2px; }
+  #cut-detail { margin:0; }
   .map-card select {
     margin: 0;
     font-size: 14px;

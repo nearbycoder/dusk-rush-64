@@ -150,13 +150,23 @@ export function verifyCameraAndContacts() {
   v.speed = 76;
   v.gate = 7;
   step(dt);
-  const last = point(v);
+  const stripe = point(v);
   for (let i = 0; i < 30; i++) step(dt);
   check(
-    "Free Drive stays at the open course endpoint",
-    pl.s > rte.len - 1 &&
-      Math.hypot(last.x - point(v).x, last.z - point(v).z) < 0.1,
+    "Free Drive can cross the sprint stripe into its runoff",
+    pl.s > rte.len + 10 && !pl.finish && pl.lap === 0 && pl.gate === 8 &&
+      Math.hypot(stripe.x - point(v).x, stripe.z - point(v).z) > 10,
   );
+  keys.add("KeyW");
+  for (let i = 0; i < 280; i++) step(dt);
+  keys.clear();
+  check("Runoff ends at a solid barrier", v.s <= rte.len + rte.runoff &&
+    v.s > rte.len + rte.runoff - 7 && !firstWall(hull(v), hull(v)));
+  const stopped = v.s;
+  keys.add("KeyS");
+  for (let i = 0; i < 120; i++) step(dt);
+  keys.clear();
+  check("Can reverse out of the sprint runoff", v.s < stopped - 3 && !v.finish);
   v = start(1, 12);
   v.s = 50;
   cam = 2;

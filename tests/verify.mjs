@@ -1,3 +1,6 @@
+import { verifyEndurance } from "./endurance.mjs";
+import { verifyArcadeSite } from "./site.mjs";
+import { verifyMixedInputs } from "./mixed-inputs.mjs";
 import { verifyRaceFeedback } from "./race-feedback.mjs";
 import { verifyTouch } from "./touch.mjs";
 import { raceConditions } from "./race-conditions.mjs";
@@ -12,6 +15,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import assert from "node:assert/strict";
+const durationOption=process.argv.find(o=>o.startsWith("--endurance="));
+const enduranceMinutes=durationOption ? Number(durationOption.slice(12)) : 0;
+if(durationOption) assert(Number.isFinite(enduranceMinutes) && enduranceMinutes>0,"Use --endurance=MINUTES");
 const root = fileURLToPath(new URL("..", import.meta.url)),
   profile = await mkdtemp(path.join(tmpdir(), "rush64-"));
 const chrome =
@@ -32,8 +38,7 @@ const page = pathToFileURL(path.join(root, "docs", "play", "index.html")).href,
       "--no-default-browser-check",
       "--disable-background-networking",
       "--remote-debugging-port=0",
-      "--use-angle=swiftshader",
-      "--enable-unsafe-swiftshader",
+      ...(enduranceMinutes ? [] : ["--use-angle=swiftshader","--enable-unsafe-swiftshader"]),
       "--window-size=1440,900",
       "--user-data-dir=" + profile,
       page,
@@ -100,6 +105,15 @@ async function verifyKeyboardMenus() {
   await key("Enter","Enter");
   assert.equal(await evalJS("screen"),"race");
   await key("Escape","Escape"); assert.equal(await evalJS("screen"),"pause");
+  if (await evalJS("document.fullscreenEnabled")) {
+    await evalJS(`settings();drawUI();accessMenu.querySelector('[data-action="FULL SCREEN"]').focus()`);
+    await key("Enter","Enter");
+    for(let i=0;i<30 && !await evalJS("!!document.fullscreenElement");i++) await delay(30);
+    assert(await evalJS("!!document.fullscreenElement"),"Could not enter full screen");
+    await key("Enter","Enter");
+    for(let i=0;i<30 && await evalJS("!!document.fullscreenElement");i++) await delay(30);
+    assert(await evalJS("!document.fullscreenElement"),"Could not return to window");
+  }
 }
 async function verifyDisplayRecovery() {
   const signature=`JSON.stringify([routeId,elapsed,pl.s,pl.x,pl.gate,pl.lap,pl.damage,cam,score,
@@ -140,6 +154,10 @@ async function tests() {
   ).find((t) => t.url === page);
   ws = new WebSocket(tab.webSocketDebuggerUrl);
   await new Promise((r) => (ws.onopen = r));
+  ws.onclose = () => {
+    for (const done of waiting.values()) done({error:{message:"Browser debugging connection closed"}});
+    waiting.clear();
+  };
   ws.onmessage = (e) => {
     let msg = JSON.parse(e.data);
     if (msg.method === "Page.loadEventFired") loadComplete?.();
@@ -157,6 +175,29 @@ async function tests() {
   await rpc("Runtime.enable");
   await rpc("Log.enable");
   await reload();
+  const siteOption = process.argv.find((arg) => arg.startsWith("--site="));
+  if (siteOption) {
+    await verifyArcadeSite(rpc, evalJS, siteOption.slice(7));
+    assert.deepEqual(errors, []);
+    return;
+  }
+  if (process.argv.includes("--stress")) {
+    const total = { contacts: 0, jumps: 0, checks: 0, frames: 0, resets: 0 };
+    for (let course = 0; course < 20; course++) {
+      const run = await evalJS("(" + verifyMixedInputs.toString() + ")(" + course + ")");
+      for (const key of Object.keys(total)) total[key] += run[key];
+      console.log("Mixed inputs on course " + (course + 1), run);
+    }
+    assert.deepEqual(errors, []);
+    console.log("60 simulated minutes across 20 courses", total);
+    return;
+  }
+  if(enduranceMinutes){
+    await rpc("Emulation.setFocusEmulationEnabled", {enabled:true});
+    await verifyEndurance(evalJS,enduranceMinutes);
+    assert.deepEqual(errors,[]);
+    return;
+  }
   if (process.argv.includes("--touch")) {
     await verifyTouch(rpc, evalJS);
     assert.deepEqual(errors, []);
@@ -195,14 +236,16 @@ async function tests() {
   let topology = await evalJS(`(()=>{
     const signatures=new Set;
     for(let id=0;id<cars.length;id++){
-      let whole=[],part={bit:32,vertices:[]};
+      let whole=[],part={bit:32,vertices:[]},bumper={bit:512,vertices:[]};
       carMesh(whole,id,paints[0],undefined,0,false,part);
+      carMesh([],id,paints[0],undefined,0,false,bumper);
       let hash=2166136261,wheels=new Set;
       for(let i=0;i<whole.length;i+=9){
         for(let c=0;c<3;c++)hash=Math.imul(hash^Math.round(whole[i+c]*10000),16777619);
         if(whole[i+8]>=32)wheels.add(Math.floor(whole[i+8]/32));
       }
-      if(!whole.every(Number.isFinite)||wheels.size!==4||!part.vertices.length||!part.vertices.every(Number.isFinite))return false;
+      if(!whole.every(Number.isFinite)||wheels.size!==4||!part.vertices.length||!part.vertices.every(Number.isFinite) ||
+        bumper.vertices.length<27 || !bumper.vertices.every(Number.isFinite))return false;
       signatures.add(hash);
       prefs.car=id;orbit=.65;renderWorld();orbit=-2.43;
     }
@@ -378,9 +421,9 @@ async function tests() {
     "Championship cup, mid-cup reload, time attack record and ghost playback passed.",
   );
   await evalJS(
-    "prefs.mode=4;prefs.track=6;prefs.car=29;startRace();for(let i=0;i<10000&&pl.air<8;i++)step(dt,true);notice('SKYLINE LAUNCH')",
+    "prefs.mode=4;prefs.track=6;prefs.car=29;startRace();for(let i=0;i<10000&&pl.air<25;i++)step(dt,true);notice('SKYLINE LAUNCH')",
   );
-  assert(await evalJS("pl.air>=8"));
+  assert(await evalJS("pl.air>=25"));
   await shot("major-jump");
   await evalJS(
     "prefs.track=1;prefs.car=12;prefs.mode=3;startRace();countdown=0;pl.s=props[0].s+Math.sin(elapsed*.14+props[0].s)*6-3.5-cars[pl.id][0]/2-.4;pl.x=props[0].x;pl.speed=39;step(dt);step(dt)",
@@ -436,11 +479,37 @@ async function tests() {
   );
   await rpc("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   assert(await evalJS("touches.size===0"));
-  assert(
-    await evalJS(
-      `(()=>{let b=Array.from({length:17},()=>({value:0,pressed:false}));b[7]={value:.73,pressed:true};b[4]={value:1,pressed:true};Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[{axes:[.44],buttons:b}]});gamepad();let u=control();delete navigator.getGamepads;return u.steer===.44&&u.gas===.73&&u.boost})()`,
-    ),
-  );
+  assert(await evalJS(`(() => {
+    const buttons = Array.from({length:17}, () => ({value:0,pressed:false}));
+    const pad = {axes:[.44], buttons};
+    let connected = pad;
+    Object.defineProperty(navigator, "getGamepads", {configurable:true, value:()=>[connected]});
+    window.dispatchEvent(new Event("focus"));
+    buttons[7] = {value:.73,pressed:true};
+    buttons[4] = {value:1,pressed:true};
+    gamepad();
+    const driving = control();
+    window.dispatchEvent(new Event("blur"));
+    buttons[9] = {value:1,pressed:true};
+    gamepad();
+    window.dispatchEvent(new Event("focus"));
+    gamepad();
+    const paused = screen === "pause" && !control().gas;
+    pad.axes[0] = 0;
+    buttons.fill({value:0,pressed:false});
+    gamepad();
+    buttons[9] = {value:1,pressed:true};
+    gamepad();
+    const resumed = screen === "race";
+    connected = null;
+    gamepad();
+    connected = {axes:[],buttons:[]};
+    gamepad();
+    const empty = control();
+    delete navigator.getGamepads;
+    return driving.steer === .44 && driving.gas === .73 && driving.boost &&
+      paused && resumed && empty.gas === 0 && empty.brake === 0;
+  })()`));
   await evalJS("keys.add('KeyW');window.dispatchEvent(new Event('blur'))");
   assert(await evalJS("screen==='pause'&&keys.size===0&&touches.size===0"));
   await verifyTouch(rpc, evalJS);

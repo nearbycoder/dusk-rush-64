@@ -60,6 +60,19 @@ export function verifyRaceFeedback() {
     ),
     "Ghost precision",
   );
+  const branch = rte.cuts[0];
+  const mainSample = [5, branch.a - 0.4, branch.side * rte.width * 0.58, 0, -1, 0];
+  const cutSample = [5.1, branch.a + 3, 0.25, 1.2, 0, 0];
+  const legacy = readGhost(packGhost([mainSample, cutSample]), rte);
+  const cutEnd = point({s: cutSample[1], x: cutSample[2], air: cutSample[3], cut: 0});
+  const endPose = ghostView(legacy[0], legacy[1], 1);
+  const posed = ghostView([...mainSample, 0.3, 0.4, -0.5], [...cutSample, 0, 0.2, -0.4], 0.5);
+  check(
+    encoded.startsWith("g2.") && decoded.some((p) => Math.abs(p[7]) > 0.04) &&
+      legacy[0].length === 6 && Math.hypot(endPose.x - cutEnd.x, endPose.z - cutEnd.z) < 0.01 &&
+      Math.abs(posed.pitch - 0.3) < 0.001 && Math.abs(posed.roll + 0.45) < 0.001,
+    "Ghost branch transition, attitude or backwards compatibility",
+  );
   check(prefs.timeTrials[0].splits.length === 24, "Missing timed split");
   prefs.car = 8;
   startRace();
@@ -118,6 +131,18 @@ export function verifyRaceFeedback() {
   check(
     ghostTape.at(-1)[0] === 12 && ghostTape.at(-2)[0] === 11.99,
     "Ghost timing after recovery",
+  );
+  // Replacing a rounded sample from the stripe tick must preserve a readable save.
+  delete prefs.records["2-0"];
+  elapsed = 12.001;
+  ghostTape.push([15.01, rte.len - 0.5, 0, 0, -1, 2]);
+  pl.s = rte.len + 0.4;
+  pl.tickStart = { s: rte.len - 0.1 };
+  finishRace(pl);
+  const stripeTape = readGhost(packGhost(prefs.ghosts[0]), rte);
+  check(
+    stripeTape && Math.abs(stripeTape.at(-1)[0] - pl.finish) < 0.001,
+    "Interpolated finish broke ghost playback after a reload",
   );
   prefs.mode = 3;
   startRace();

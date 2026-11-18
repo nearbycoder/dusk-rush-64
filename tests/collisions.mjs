@@ -153,7 +153,7 @@ export function verifyCollisions() {
   );
   // Exercise a real, unmodified start gantry on Golden Span, at crossbar height.
   v = setup(2);
-  const p = rte.at(5),
+  const p = rte.at(0),
     probe = solid(p.x, p.y + 7, p.z, p.ang, 0.4, 0.4, 0.4);
   let beam;
   staticCandidates(probe, probe, (o) => {
@@ -161,14 +161,14 @@ export function verifyCollisions() {
       beam = o;
   });
   check("rendered start gantry registered", !!beam);
-  place(v, 0);
+  place(v, rte.len - 7);
   v.air = 7.4;
   v.vy = 1;
   v.speed = 95;
-  for (let i = 0; i < 4; i++) drive(v, throttle, dt);
+  for (let i = 0; i < 7; i++) drive(v, throttle, dt);
   check(
     "gantry crossbar stops a jumping car",
-    v.s < 5 && clear(v) && v.damage[0] > 0,
+    v.s < rte.len - 1 && clear(v) && v.damage[0] > 0,
   );
   v = setup(1);
   const tram = props.find((p) => p.type === "tram");

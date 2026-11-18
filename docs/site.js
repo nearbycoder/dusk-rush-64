@@ -95,8 +95,41 @@ let routeLength = 0,
   mapFrame,
   mapVisible = false;
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+const branchLines = [byId("branch-0"), byId("branch-1")];
+const cutButtons = [...document.querySelectorAll("[data-cut]")];
+let tracedCut = -1,
+  branchLength = 0;
+function chooseCut(index) {
+  tracedCut = index;
+  const cut = tracks[trackId].cuts[index];
+  branchLength = cut ? branchLines[index].getTotalLength() : 0;
+  cutButtons.forEach((button, i) => {
+    button.setAttribute("aria-pressed", i === index);
+    branchLines[i].classList.toggle("selected", i === index);
+  });
+  byId("cut-detail").textContent = cut
+    ? cut.surface[0].toUpperCase() +
+      cut.surface.slice(1) +
+      " · " +
+      cut.metres +
+      " m shorter"
+    : "Choose a shortcut to trace its line.";
+}
+cutButtons.forEach(
+  (button, i) => (button.onclick = () => chooseCut(tracedCut === i ? -1 : i)),
+);
 function traceCourse(t) {
-  const p = route.getPointAtLength(((t % 6500) / 6500) * routeLength);
+  const cut = tracks[trackId].cuts[tracedCut];
+  const join = cut ? cut.entry * routeLength : routeLength;
+  const leave = cut ? cut.exit * routeLength : routeLength;
+  const lap = join + branchLength + routeLength - leave;
+  const s = ((t % 6500) / 6500) * lap;
+  const p =
+    s < join
+      ? route.getPointAtLength(s)
+      : cut && s < join + branchLength
+        ? branchLines[tracedCut].getPointAtLength(s - join)
+        : route.getPointAtLength(leave + s - join - branchLength);
   marker.setAttribute("cx", p.x);
   marker.setAttribute("cy", p.y);
   mapFrame = requestAnimationFrame(traceCourse);
@@ -127,6 +160,11 @@ function selectCourse(id) {
   byId("start").setAttribute("cx", x);
   byId("start").setAttribute("cy", y);
   routeLength = route.getTotalLength();
+  track.cuts.forEach((cut, i) => {
+    branchLines[i].setAttribute("points", cut.points);
+    cutButtons[i].textContent = cut.name;
+  });
+  chooseCut(-1);
   for (const btn of byId("course-strip").children)
     btn.setAttribute("aria-pressed", Number(btn.dataset.id) === id);
   raceLink();
@@ -150,6 +188,25 @@ reduced.addEventListener("change", mapAnimation);
 document.addEventListener("visibilitychange", mapAnimation);
 selectCar(carId);
 selectCourse(trackId);
+const paintSample = byId("paint-sample");
+const paintCups = [
+  "City Lights",
+  "High Country",
+  "Fault Line",
+  "Pacific Run",
+  "Last Horizon",
+];
+paintSample.onchange = () => {
+  const index = paintSample.selectedIndex;
+  const name = paintSample.value;
+  const image = byId("paint-img");
+  image.src = "media/liveries/" + index + ".webp";
+  image.alt = "Hammerhead V8 in the " + name + " livery";
+  byId("paint-unlock").textContent =
+    index < 2
+      ? name + " is available on every car from the start."
+      : "Finish the " + paintCups[index - 2] + " Cup to unlock " + name + ".";
+};
 for (const btn of document.querySelectorAll("[data-damage]"))
   btn.onclick = () => {
     const damaged = btn.dataset.damage === "1",
