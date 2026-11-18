@@ -796,6 +796,45 @@
         return next;
       }
       // WebGL2 renderer. Static scenery is batched in distance-culled road sectors.
+      let saveInterruptedRace = null;
+      function retryStartupGraphics(key) {
+        if (document.hidden) return;
+        try {
+          const last = history.state?.[key] || 0;
+          if (Date.now() - last < 30000) return;
+          history.replaceState({ ...history.state, [key]: Date.now() }, "");
+        } catch {
+          // Without per-entry state the Reload button remains a bounded retry.
+          return;
+        }
+        location.reload();
+      }
+      function graphicsNotice(heading, reason) {
+        const title = document.createElement("strong");
+        const message = document.createElement("p");
+        const retry = document.createElement("button");
+        title.textContent = heading;
+        message.textContent = reason;
+        retry.type = "button";
+        retry.textContent = "Reload game";
+        retry.onclick = () => location.reload();
+        err.replaceChildren(title, message, retry);
+      }
+      // Some mobile browsers can take the context back during the very first shader compile.
+      // Register these listeners before requesting the device or creating any GPU objects.
+      world.addEventListener("webglcontextlost", (event) => {
+        event.preventDefault();
+        if (saveInterruptedRace) saveInterruptedRace();
+        else setTimeout(() => retryStartupGraphics("rushGraphicsWarmRetry"), 1800);
+        graphicsNotice("Graphics paused", "The game will reopen when the browser makes graphics available again.");
+      });
+      world.addEventListener("webglcontextrestored", () => {
+        if (!saveInterruptedRace) {
+          retryStartupGraphics("rushGraphicsRestoredRetry");
+          return;
+        }
+        location.reload();
+      });
       const gl = world.getContext("webgl2", {
           antialias: false,
           alpha: false,
@@ -803,8 +842,7 @@
         }),
         ui2 = ui.getContext("2d");
       if (!gl) {
-        err.textContent =
-          "WebGL2 is required. Enable hardware acceleration to play.";
+        graphicsNotice("WebGL2 is unavailable", "Enable hardware acceleration in your browser, then reload the game.");
         throw Error("WebGL2 unavailable");
       }
       function program(v, f) {
@@ -816,13 +854,19 @@
           let s = gl.createShader(type);
           gl.shaderSource(s, "#version 300 es\n" + src);
           gl.compileShader(s);
-          if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
-            throw Error(gl.getShaderInfoLog(s));
+          if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+            if (gl.isContextLost())
+              graphicsNotice("Graphics paused", "The browser interrupted startup. The game will retry when graphics return.");
+            else graphicsNotice("Graphics could not start", "The browser could not compile the game's shaders. Reload to try again.");
+            throw Error(gl.getShaderInfoLog(s) || "Graphics unavailable during shader compilation");
+          }
           gl.attachShader(p, s);
         }
         gl.linkProgram(p);
-        if (!gl.getProgramParameter(p, gl.LINK_STATUS))
-          throw Error(gl.getProgramInfoLog(p));
+        if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+          graphicsNotice("Graphics could not start", "Reload to restore the game's graphics.");
+          throw Error(gl.getProgramInfoLog(p) || "Graphics unavailable during program linking");
+        }
         return p;
       }
       const sceneP = program(
@@ -11150,8 +11194,7 @@
           change("setup");
         }
       }
-      world.addEventListener("webglcontextlost", (event) => {
-        event.preventDefault();
+      saveInterruptedRace = () => {
         graphicsLost = true;
         clearControls();
         quietMotors();
@@ -11164,18 +11207,7 @@
           } catch {}
         }
         accessMenu.inert = true;
-        const title = document.createElement("strong"),
-          message = document.createElement("p"),
-          retry = document.createElement("button");
-        title.textContent = "Graphics paused";
-        message.textContent =
-          "The browser interrupted the graphics. The game will reopen when the display is ready.";
-        retry.type = "button";
-        retry.textContent = "Reload game";
-        retry.onclick = () => location.reload();
-        err.replaceChildren(title, message, retry);
-      });
-      world.addEventListener("webglcontextrestored", () => location.reload());
+      };
       let prev = 0,
         acc = 0,
         perf = 0,

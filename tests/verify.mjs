@@ -116,6 +116,36 @@ async function verifyKeyboardMenus() {
   }
 }
 async function verifyDisplayRecovery() {
+  // Interrupt the first shader before the game has a race or any completed GPU resources.
+  const priorErrors = errors.length;
+  const hook = await rpc("Page.addScriptToEvaluateOnNewDocument", {source: `
+    const originalCompile = WebGL2RenderingContext.prototype.compileShader;
+    WebGL2RenderingContext.prototype.compileShader = function(shader) {
+      originalCompile.call(this,shader);
+      WebGL2RenderingContext.prototype.compileShader = originalCompile;
+      window.bootLoss = this.getExtension("WEBGL_lose_context");
+      bootLoss.loseContext();
+    };
+  `});
+  const interrupted = new Promise((resolve) => loadComplete = resolve);
+  await rpc("Page.reload");
+  await interrupted;
+  await rpc("Page.removeScriptToEvaluateOnNewDocument", {identifier:hook.identifier});
+  for(let i=0;i<40 && !await evalJS('!!err.querySelector("button")');i++) await delay(25);
+  assert(await evalJS('err.textContent.includes("Graphics paused") && !!err.querySelector("button")'));
+  const reloaded = new Promise((resolve) => loadComplete = resolve);
+  await evalJS("bootLoss.restoreContext()");
+  let bootTimeout;
+  try {
+    await Promise.race([reloaded,new Promise((_,reject) => {
+      bootTimeout=setTimeout(() => reject(Error("Startup graphics recovery timed out")),12000);
+    })]);
+  } finally { clearTimeout(bootTimeout); }
+  await evalJS("testMode=true;renderWorld();drawUI()");
+  assert(await evalJS('!err.textContent && gl.getError()===gl.NO_ERROR'));
+  const interruptedErrors = errors.splice(priorErrors);
+  assert(interruptedErrors.every((e) => String(e).includes("Graphics unavailable during shader compilation")),
+    JSON.stringify(interruptedErrors));
   const signature=`JSON.stringify([routeId,elapsed,pl.s,pl.x,pl.gate,pl.lap,pl.damage,cam,score,
     prefs.cups,vehicles.map(v=>[v.id,v.progress,v.cut])])`;
   await evalJS(`Object.assign(prefs,structuredClone(defaults),{mode:1,cup:1});
@@ -135,7 +165,7 @@ async function verifyDisplayRecovery() {
   assert(await evalJS('screen==="pause" && !graphicsLost && gl.getError()===gl.NO_ERROR'));
   await evalJS("pause();step(dt,true)");
   assert.equal(await evalJS("screen"),"race");
-  console.log("Lost and restored WebGL2 during a cup race with its station, opponents and timing intact.");
+  console.log("Restored WebGL2 during startup and during a cup race with its station, opponents and timing intact.");
 }
 async function tests() {
   let port;
