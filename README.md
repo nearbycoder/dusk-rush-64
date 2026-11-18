@@ -30,4 +30,4 @@ The revised courses start a new set of times and ghosts. The game carries settin
 
 ## GitHub Pages
 
-The site publishes from the `docs/` folder on `main`. The cabinet title screen opens race setup with Press Start. Its control deck switches between the showroom, course map and driver’s manual. Garage and course selections open Free Race setup with the chosen vehicle and track. The sunset scene, vehicle models and gameplay reel are captured from the game renderer.
+The site publishes from `docs/` on `main`. The scrolling arcade guide includes three showroom angles for each of the 30 cars, track photography and route maps for all 20 courses, a body-damage comparison, camera and control guides, and an on-demand embedded game. Press Start opens race setup full page. Selecting a vehicle and course carries that pair into Free Race. The showroom, track photographs and gameplay reel come from the game renderer.
