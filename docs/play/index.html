@@ -8006,6 +8006,8 @@
         prefs.car = launchCar;
         prefs.track = launchTrack;
         screen = "setup";
+      } else if (launchParams.has("start")) {
+        screen = "setup";
       }
       resize();
       requestAnimationFrame(frame);

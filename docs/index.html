@@ -20,177 +20,161 @@
     <meta property="og:type" content="website" />
     <meta
       property="og:image"
-      content="https://nearbycoder.github.io/dusk-rush-64/media/key-art.webp"
+      content="https://nearbycoder.github.io/dusk-rush-64/media/cabinet-scene.webp"
     />
     <link rel="icon" href="favicon.svg" />
-    <link rel="preload" href="media/key-art.webp" as="image" />
+    <link rel="preload" href="media/cabinet-scene.webp" as="image" />
     <link rel="stylesheet" href="site.css" />
     <script defer src="catalog.js"></script>
     <script defer src="site.js"></script>
   </head>
   <body>
-    <a class="skip" href="#content">Skip to content</a>
-    <header class="top">
-      <div class="wrap headrow">
-        <a class="brand" href="#content" aria-label="Dusk Rush ’64 home"
-          ><i class="mark" aria-hidden="true"></i>DUSK RUSH <b>’64</b></a
-        >
-        <nav aria-label="Main navigation">
-          <a href="#game">The game</a><a href="#garage">Garage</a
-          ><a href="#courses">Courses</a><a href="#controls">Controls</a>
-        </nav>
-        <a class="button small" href="play/"
-          ><i class="triangle"></i>Play now</a
+    <a class="skip" href="#screen">Skip to arcade</a>
+    <header class="mast">
+      <div class="maker">
+        <i class="flag"></i><span>West Coast <b>Arcade</b></span>
+      </div>
+      <div class="mast-controls">
+        <a href="play/index.html" download="dusk-rush-64.html"
+          >Download game <b>↓</b></a
+        ><a href="https://github.com/nearbycoder/dusk-rush-64"
+          >GitHub <b>↗</b></a
         >
       </div>
     </header>
-    <main id="content">
-      <section class="hero" aria-labelledby="title">
-        <div class="wrap hero-inner">
-          <div class="pitch">
-            <p class="tag hero-tag">
-              <span class="stripes"></span> West Coast Arcade
-            </p>
-            <h1 id="title">DUSK<br />RUSH<span>’64</span></h1>
-            <p class="lede">
-              Launch over San Francisco’s hills, cut through back alleys, and
-              bring what’s left of your car across the line.
-            </p>
-            <div class="actions">
-              <a class="button" href="play/"
-                ><i class="triangle"></i>Play in browser</a
-              ><a class="textlink" href="#game"
-                >Explore the game <span>↓</span></a
+    <main class="cabinet" id="cabinet">
+      <div class="rail">
+        <span class="vent"></span><span class="serial">DR—64</span
+        ><span class="vent"></span>
+      </div>
+      <div class="bezel">
+        <span class="bolt nw"></span><span class="bolt ne"></span
+        ><span class="bolt sw"></span><span class="bolt se"></span>
+        <div class="glass" id="screen" tabindex="-1">
+          <section
+            class="view title-view"
+            id="title-panel"
+            aria-labelledby="game-title"
+          >
+            <div class="scene"></div>
+            <div class="screen-top">
+              <span class="chip"><i class="signal"></i> Title screen</span
+              ><button class="chip replay" id="replay" type="button">
+                <b>▶</b> Watch demo
+              </button>
+            </div>
+            <div class="title-copy">
+              <h1 id="game-title">
+                <img
+                  src="media/marquee.png"
+                  width="960"
+                  height="410"
+                  alt="Dusk Rush ’64"
+                />
+              </h1>
+              <p class="subtitle">San Francisco stunt racing</p>
+              <p class="blurb">
+                Launch off hilltops. Cut through the docks.<br />Bring what’s
+                left of your car across the line.
+              </p>
+              <a class="start-button" id="start-game" href="play/?start"
+                ><span>▶</span> Press Start</a
               >
             </div>
-          </div>
-          <div class="credit">
-            <span></span>Spectre S <em>/</em> Golden Span
-          </div>
-        </div>
-      </section>
-      <section class="numbers" aria-label="Game at a glance">
-        <div class="wrap statrow">
-          <div>
-            <strong>20</strong><span>Original<br />tracks</span>
-          </div>
-          <div>
-            <strong>30</strong><span>Selectable<br />cars</span>
-          </div>
-          <div>
-            <strong>05</strong><span>Game<br />modes</span>
-          </div>
-          <div>
-            <strong>08</strong><span>Cars on<br />the grid</span>
-          </div>
-        </div>
-      </section>
-      <section id="game" class="section wrap">
-        <p class="tag"><span class="stripes"></span>The game</p>
-        <h2>Go for the gap<span>.</span></h2>
-        <div class="features">
-          <article>
-            <img
-              src="media/active-race.webp"
-              alt="A pack of cars accelerates up a wide city avenue at dusk"
-              loading="lazy"
-              width="900"
-              height="562"
-            />
-            <h3>Take the inside line.</h3>
-            <p>
-              Seven rivals chase the same checkpoints. Drift through broad
-              corners and gamble on two shortcuts per course.
-            </p>
-          </article>
-          <article>
-            <img
-              src="media/major-jump.webp"
-              alt="A stunt car clears a hilltop launch on Twin Peaks Plunge"
-              loading="lazy"
-              width="900"
-              height="562"
-            />
-            <h3>Earn your airtime.</h3>
-            <p>
-              Charge boost with clean drifts, close passes and time off the
-              ground. Steer in midair to line up the landing.
-            </p>
-          </article>
-          <article>
-            <img
-              src="media/full-wreck.webp"
-              alt="A collision sends a fireball and broken car parts into the street"
-              loading="lazy"
-              width="900"
-              height="562"
-            />
-            <h3>Leave a few parts behind.</h3>
-            <p>
-              Glass shatters, panels buckle and wheels come loose. Wreck hard
-              enough and you’ll rejoin from a safe spot with a time penalty.
-            </p>
-          </article>
-        </div>
-      </section>
-      <section class="workshop">
-        <div class="wrap">
-          <div class="sectionintro">
-            <p class="tag"><span class="stripes"></span>Race setup</p>
-            <h2>Pick your ride<span>.</span></h2>
-            <p>Pair any car with any course for a Free Race.</p>
-          </div>
-          <div class="panels">
-            <article id="garage" class="garage panel">
-              <div class="panelbar">
-                <h3>Garage</h3>
-                <span id="car-count">13 / 30</span>
+            <div class="screen-foot">
+              <span>1 player</span><i></i><span>20 tracks</span><i></i
+              ><span>30 cars</span>
+            </div>
+          </section>
+          <section
+            class="view film-view"
+            id="film-panel"
+            aria-label="Gameplay demo"
+            hidden
+          >
+            <video
+              id="film"
+              muted
+              playsinline
+              controls
+              preload="none"
+              poster="media/active-race.webp"
+              src="media/attract.mp4"
+            ></video>
+            <div class="film-bar">
+              <button data-open="title">← Title screen</button
+              ><a href="play/?start">Start game ▶</a>
+            </div>
+          </section>
+          <section
+            class="view menu-view"
+            id="garage-panel"
+            aria-labelledby="garage-title"
+            hidden
+          >
+            <div class="menu-head">
+              <div>
+                <p class="kicker">Free race setup</p>
+                <h2 id="garage-title">Car select</h2>
               </div>
-              <div class="showroom">
+              <strong id="car-count"></strong>
+            </div>
+            <div class="select-content">
+              <div class="car-stage">
                 <img
                   id="car-img"
-                  src="media/car-12.webp"
-                  alt="Spectre S showroom model"
                   width="640"
                   height="350"
-                  loading="lazy"
+                  alt="Spectre S"
+                  src="media/car-12.webp"
                 />
               </div>
-              <div class="pickline">
-                <div>
-                  <small id="car-class">Exotic</small
-                  ><label for="car">Vehicle</label
-                  ><select id="car" aria-label="Select vehicle">
-                    <option>Spectre S</option>
-                  </select>
-                </div>
-                <div class="switch">
+              <div class="settings">
+                <small id="car-class"></small
+                ><label class="sr" for="car">Vehicle</label
+                ><select id="car"></select>
+                <div class="arrows">
                   <button
                     data-cycle="car"
                     data-step="-1"
                     aria-label="Previous vehicle"
                   >
-                    ←</button
+                    ◀</button
                   ><button
                     data-cycle="car"
                     data-step="1"
                     aria-label="Next vehicle"
                   >
-                    →
+                    ▶
                   </button>
                 </div>
+                <dl>
+                  <dt>Top speed</dt>
+                  <dd id="speed"></dd>
+                  <dt>Weight</dt>
+                  <dd id="weight"></dd>
+                </dl>
+                <button class="slab" data-open="courses">
+                  Choose course →
+                </button>
               </div>
-              <div class="details">
-                <div><small>Top speed</small><b id="speed">317 km/h</b></div>
-                <div><small>Weight</small><b id="weight">1,170 kg</b></div>
+            </div>
+          </section>
+          <section
+            class="view menu-view"
+            id="courses-panel"
+            aria-labelledby="courses-title"
+            hidden
+          >
+            <div class="menu-head">
+              <div>
+                <p class="kicker">Free race setup</p>
+                <h2 id="courses-title">Course select</h2>
               </div>
-            </article>
-            <article id="courses" class="course panel">
-              <div class="panelbar">
-                <h3>Course book</h3>
-                <span id="track-count">01 / 20</span>
-              </div>
-              <div class="mapwell">
+              <strong id="track-count"></strong>
+            </div>
+            <div class="select-content">
+              <div class="map-stage">
                 <svg
                   viewBox="0 0 300 190"
                   aria-label="Selected course layout"
@@ -199,129 +183,164 @@
                   <polyline id="route-shadow"></polyline>
                   <polyline id="route"></polyline>
                   <circle id="start" r="4"></circle>
+                  <circle id="racer" r="3"></circle>
                 </svg>
               </div>
-              <div class="pickline">
-                <div>
-                  <small id="district">Financial District</small
-                  ><label for="track">Course</label
-                  ><select id="track" aria-label="Select course">
-                    <option>Downtown Launch</option>
-                  </select>
-                </div>
-                <div class="switch">
+              <div class="settings">
+                <small id="district"></small
+                ><label class="sr" for="track">Course</label
+                ><select id="track"></select>
+                <div class="arrows">
                   <button
                     data-cycle="track"
                     data-step="-1"
                     aria-label="Previous course"
                   >
-                    ←</button
+                    ◀</button
                   ><button
                     data-cycle="track"
                     data-step="1"
                     aria-label="Next course"
                   >
-                    →
+                    ▶
                   </button>
                 </div>
+                <p id="feature"></p>
+                <dl>
+                  <dt>Format</dt>
+                  <dd id="format"></dd>
+                  <dt>Length</dt>
+                  <dd id="distance"></dd>
+                </dl>
+                <p class="driver" id="setup-summary"></p>
+                <a class="slab" id="launch" href="play/">Race this setup ▶</a>
               </div>
-              <div class="details">
-                <div><small>Format</small><b id="format">Circuit</b></div>
-                <div><small>Course length</small><b id="distance"></b></div>
+            </div>
+          </section>
+          <section
+            class="view menu-view"
+            id="manual-panel"
+            aria-labelledby="manual-title"
+            hidden
+          >
+            <div class="menu-head">
+              <div>
+                <p class="kicker">Driver’s manual</p>
+                <h2 id="manual-title">How to play</h2>
               </div>
-            </article>
-          </div>
-          <div class="launchrow">
-            <p id="setup-summary" aria-live="polite">
-              Spectre S · Downtown Launch
-            </p>
-            <a id="launch" class="button" href="play/"
-              ><i class="triangle"></i>Race this setup</a
-            >
-          </div>
+            </div>
+            <div class="instructions">
+              <div class="guide">
+                <h3>Race the hills.</h3>
+                <p>
+                  Beat seven rivals through ordered checkpoints. Two shortcuts
+                  on every course give you a chance to steal a place.
+                </p>
+                <h3>Charge your boost.</h3>
+                <p>
+                  Hold a slide, stay airborne or skim past a rival to refill the
+                  boost meter. Use it on the next climb.
+                </p>
+                <h3>Recover from a wreck.</h3>
+                <p>
+                  Broken glass and loose panels tell you where you took the hit.
+                  A wreck puts you back at a safe spot with a time penalty.
+                </p>
+              </div>
+              <div class="accordion">
+                <details open>
+                  <summary>Keyboard controls</summary>
+                  <dl class="keys">
+                    <dt><kbd>W</kbd> / <kbd>↑</kbd></dt>
+                    <dd>Accelerate</dd>
+                    <dt><kbd>S</kbd> / <kbd>↓</kbd></dt>
+                    <dd>Brake, then reverse</dd>
+                    <dt>
+                      <kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd>
+                    </dt>
+                    <dd>Steer</dd>
+                    <dt><kbd>Shift</kbd> / <kbd>Space</kbd></dt>
+                    <dd>Boost / handbrake</dd>
+                    <dt><kbd>C</kbd> / <kbd>R</kbd> / <kbd>Esc</kbd></dt>
+                    <dd>Camera / recover / pause</dd>
+                  </dl>
+                </details>
+                <details>
+                  <summary>Gamepad &amp; touch</summary>
+                  <p>
+                    Steer with the left stick. Use the right trigger for gas and
+                    the left for brakes. The left shoulder boosts, the west face
+                    button slides, and the north face button cycles cameras. On
+                    a touchscreen, hold the steering and pedal buttons together.
+                  </p>
+                </details>
+                <details>
+                  <summary>Five ways to race</summary>
+                  <dl class="modes">
+                    <dt>Free Race</dt>
+                    <dd>Choose your grid, difficulty and damage setting.</dd>
+                    <dt>Championship</dt>
+                    <dd>
+                      Race four rounds per cup and bank points for your
+                      finishing position.
+                    </dd>
+                    <dt>Time Attack</dt>
+                    <dd>Chase a ghost from your best completed run.</dd>
+                    <dt>Wreck Run</dt>
+                    <dd>
+                      Score with speed, airtime and hard impacts under Heavy
+                      damage.
+                    </dd>
+                    <dt>Free Drive</dt>
+                    <dd>
+                      Explore the course without a clock or a forced finish.
+                    </dd>
+                  </dl>
+                </details>
+                <details>
+                  <summary>Browser &amp; offline play</summary>
+                  <p>
+                    The game runs in WebGL2 and needs hardware acceleration.
+                    Cars, courses, the interface and audio are drawn or
+                    synthesized by code. Download the single HTML file to take
+                    the game offline.
+                  </p>
+                  <a
+                    class="textlink download"
+                    download="dusk-rush-64.html"
+                    href="play/index.html"
+                    >Download game ↓</a
+                  >
+                </details>
+              </div>
+            </div>
+          </section>
         </div>
-      </section>
-      <section id="controls" class="section wrap manual">
-        <div>
-          <p class="tag"><span class="stripes"></span>Driver’s manual</p>
-          <h2>How to play<span>.</span></h2>
-          <p>
-            Use a keyboard, a standard gamepad, or the on-screen touch controls.
-            Sound starts muted. Your records, settings and cup progress save in
-            this browser.
-          </p>
-        </div>
-        <div class="accordion">
-          <details open>
-            <summary>Keyboard controls</summary>
-            <dl class="keys">
-              <dt><kbd>W</kbd> / <kbd>↑</kbd></dt>
-              <dd>Accelerate</dd>
-              <dt><kbd>S</kbd> / <kbd>↓</kbd></dt>
-              <dd>Brake, then reverse</dd>
-              <dt><kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd></dt>
-              <dd>Steer</dd>
-              <dt><kbd>Shift</kbd> / <kbd>Space</kbd></dt>
-              <dd>Boost / handbrake</dd>
-              <dt><kbd>C</kbd> / <kbd>R</kbd> / <kbd>Esc</kbd></dt>
-              <dd>Camera / recover / pause</dd>
-            </dl>
-          </details>
-          <details>
-            <summary>Gamepad &amp; touch</summary>
-            <p>
-              Steer with the left stick. Use the right trigger for gas and the
-              left for brakes. The left shoulder boosts, the west face button
-              slides, and the north face button cycles cameras. On a
-              touchscreen, hold the steering and pedal buttons together.
-            </p>
-          </details>
-          <details>
-            <summary>Five ways to race</summary>
-            <dl class="modes">
-              <dt>Free Race</dt>
-              <dd>Choose your grid, difficulty and damage setting.</dd>
-              <dt>Championship</dt>
-              <dd>
-                Race four rounds per cup and bank points for your finishing
-                position.
-              </dd>
-              <dt>Time Attack</dt>
-              <dd>Chase a ghost from your best completed run.</dd>
-              <dt>Wreck Run</dt>
-              <dd>
-                Score with speed, airtime and hard impacts under Heavy damage.
-              </dd>
-              <dt>Free Drive</dt>
-              <dd>Explore the course without a clock or a forced finish.</dd>
-            </dl>
-          </details>
-          <details>
-            <summary>Browser &amp; offline play</summary>
-            <p>
-              The game runs in WebGL2 and needs hardware acceleration. Cars,
-              courses, the interface and audio are drawn or synthesized by code.
-              Download the single HTML file to take the game offline.
-            </p>
-            <a
-              class="textlink download"
-              download="dusk-rush-64.html"
-              href="play/index.html"
-              >Download game ↓</a
-            >
-          </details>
-        </div>
-      </section>
+      </div>
+      <nav class="deck" aria-label="Cabinet controls">
+        <button data-open="title" class="keycap" aria-pressed="true">
+          <i data-icon="flag"></i><span>Title screen</span>
+        </button>
+        <button data-open="garage" class="keycap" aria-pressed="false">
+          <i data-icon="car"></i><span>Garage</span>
+        </button>
+        <button data-open="courses" class="keycap" aria-pressed="false">
+          <i data-icon="route"></i><span>Courses</span>
+        </button>
+        <button data-open="manual" class="keycap" aria-pressed="false">
+          <i data-icon="book"></i><span>How to play</span>
+        </button>
+      </nav>
     </main>
     <footer>
-      <div class="wrap footrow">
-        <a class="brand" href="#content"
-          ><i class="mark"></i>DUSK RUSH <b>’64</b></a
-        ><span>West Coast Arcade</span
-        ><a class="textlink" href="https://github.com/nearbycoder/dusk-rush-64"
-          >Source on GitHub ↗</a
-        >
-      </div>
+      <span><i class="mini-flag"></i> Dusk Rush ’64</span
+      ><span>Keyboard <b>/</b> Gamepad <b>/</b> Touch</span>
     </footer>
+    <noscript
+      ><p class="fallback">
+        <a href="play/">Play the standalone game</a>. Enable JavaScript for the
+        arcade and its selectors.
+      </p></noscript
+    >
   </body>
 </html>

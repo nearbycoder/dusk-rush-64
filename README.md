@@ -30,4 +30,4 @@ The revised courses start a new set of times and ghosts. The game carries settin
 
 ## GitHub Pages
 
-The site publishes from the `docs/` folder on `main`. The landing page links directly to the standalone game. Garage and course selections open Free Race setup with the chosen vehicle and track. All site imagery comes from the game renderer.
+The site publishes from the `docs/` folder on `main`. The cabinet title screen opens race setup with Press Start. Its control deck switches between the showroom, course map and driver’s manual. Garage and course selections open Free Race setup with the chosen vehicle and track. The sunset scene, vehicle models and gameplay reel are captured from the game renderer.
