@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta
       name="viewport"
-      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
     />
     <meta name="theme-color" content="#15171a" />
     <title>Dusk Rush ’64 — West Coast Arcade</title>
@@ -20,8 +20,18 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
+        overscroll-behavior: none;
+        touch-action: none;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
       }
       main {
+        --safe-top: env(safe-area-inset-top, 0px);
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-left: env(safe-area-inset-left, 0px);
+        --safe-right: env(safe-area-inset-right, 0px);
         position: relative;
         width: 100%;
         height: 100%;
@@ -37,6 +47,7 @@
       }
       #world {
         image-rendering: pixelated;
+        margin: auto;
       }
       #ui {
         touch-action: none;
@@ -62,7 +73,7 @@
       <canvas id="world"></canvas
       ><canvas
         id="ui"
-        aria-label="Dusk Rush ’64 arcade racing game. Use arrow keys and Enter to navigate."
+        aria-label="Dusk Rush ’64 arcade racing game. Tap the screen or use arrow keys and Enter to navigate."
       ></canvas>
       <div id="access"></div>
       <div id="err"></div>
@@ -5432,9 +5443,12 @@
       let padState = {};
       function control() {
         let val = (...n) =>
-          n.some((k) => keys.has(k) || [...touches.values()].includes(k));
+          n.some((k) => keys.has(k) || touchHas(k));
         return {
-          gas: Math.max(+val("KeyW", "ArrowUp"), padState.gas || 0),
+          gas: Math.max(
+            +(val("KeyW", "ArrowUp") || touchHas("ShiftLeft") || touchHas("Space")),
+            padState.gas || 0,
+          ),
           brake: Math.max(+val("KeyS", "ArrowDown"), padState.brake || 0),
           steer: clamp(
             +val("KeyD", "ArrowRight") -
@@ -6116,9 +6130,10 @@
         gl.drawArrays(gl.TRIANGLES, 0, 3);
         gl.clear(gl.DEPTH_BUFFER_BIT);
         gl.enable(gl.DEPTH_TEST);
-        let portrait = winW < winH && H >= 1100,
-          space = portrait ? W : W - Math.min(370, W * 0.44) - 68,
-          offset = 1 - space / W;
+        const compact = touchDevice && (winW <= 1024 || winH <= 700);
+        const portrait = compact ? winW <= winH * 1.24 : winW < winH && H >= 1100;
+        const sidebar = compact ? (Math.min(winW * 0.43, 590) + 28 + safe.left) / S : Math.min(370, W * 0.44) + 68;
+        const space = portrait ? W : W - sidebar, offset = 1 - space / W;
         let depth =
           Math.max(6.45, (6.75 * H) / space) *
           (cars[prefs.car][0] / 4.55) ** 0.48;
@@ -6839,6 +6854,8 @@
           orbitHold = clock + 1.3;
         }
         orbitDrag = null;
+        pendingTaps.clear();
+        touches.clear();
         screen = s;
         modal = "";
         resize();
@@ -7326,6 +7343,45 @@
         );
         footer();
       }
+      function raceOptions(cup, tr) {
+        return [
+          [
+            "MODE",
+            modes[prefs.mode],
+            () => {
+              prefs.mode = mod(prefs.mode + 1, 5);
+              save();
+            },
+          ],
+          [
+            cup ? "CUP" : "COURSE",
+            cup ? cupNames[prefs.cup] : tr.t[0],
+            () => {
+              if (cup) {
+                prefs.cup = mod(prefs.cup + 1, 5);
+                save();
+              } else change("tracks");
+            },
+          ],
+          ["VEHICLE", names[prefs.car], () => change("garage")],
+          [
+            "DIFFICULTY",
+            levels[prefs.difficulty],
+            () => {
+              prefs.difficulty = mod(prefs.difficulty + 1, 3);
+              save();
+            },
+          ],
+          [
+            "DAMAGE",
+            damageNames[prefs.mode === 3 ? 2 : prefs.damage],
+            () => {
+              if (prefs.mode !== 3) prefs.damage = mod(prefs.damage + 1, 3);
+              save();
+            },
+          ],
+        ];
+      }
       function setup() {
         topBar();
         let x = 38,
@@ -7336,38 +7392,8 @@
         let cup = prefs.mode === 1,
           tr = routes[cup ? prefs.cup * 4 + cupState().round : prefs.track],
           yy = y + 85;
-        row("MODE", modes[prefs.mode], x, yy, w, () => {
-          prefs.mode = mod(prefs.mode + 1, 5);
-          save();
-        });
-        row(
-          cup ? "CUP" : "COURSE",
-          cup ? cupNames[prefs.cup] : tr.t[0],
-          x,
-          yy + 46,
-          w,
-          () => {
-            if (cup) {
-              prefs.cup = mod(prefs.cup + 1, 5);
-              save();
-            } else change("tracks");
-          },
-        );
-        row("VEHICLE", names[prefs.car], x, yy + 92, w, () => change("garage"));
-        row("DIFFICULTY", levels[prefs.difficulty], x, yy + 138, w, () => {
-          prefs.difficulty = mod(prefs.difficulty + 1, 3);
-          save();
-        });
-        row(
-          "DAMAGE",
-          damageNames[prefs.mode === 3 ? 2 : prefs.damage],
-          x,
-          yy + 184,
-          w,
-          () => {
-            if (prefs.mode !== 3) prefs.damage = mod(prefs.damage + 1, 3);
-            save();
-          },
+        raceOptions(cup, tr).forEach(([name, value, choose], i) =>
+          row(name, value, x, yy + i * 46, w, choose),
         );
         routeMap(tr, x, yy + 244, 110, 93, lime);
         label(
@@ -7405,6 +7431,46 @@
         btn("back", "BACK", x, yy + 408, w, 38, () => change("title"));
         footer();
       }
+      function cabinetOptions() {
+        return [
+          [
+            "SOUND",
+            prefs.sound ? "On" : "Off",
+            () => {
+              prefs.sound = !prefs.sound;
+              save();
+              if (prefs.sound) soundOn();
+              else if (master) master.gain.value = 0;
+            },
+          ],
+          [
+            "VOLUME",
+            Math.round(prefs.volume * 100) + "%",
+            () => {
+              prefs.volume = mod(Math.round(prefs.volume * 10) + 1, 11) / 10;
+              if (master) master.gain.value = prefs.volume * 0.4;
+              save();
+            },
+          ],
+          [
+            "DISPLAY",
+            prefs.aspect ? "Classic 4:3" : "Widescreen",
+            () => {
+              prefs.aspect = !prefs.aspect;
+              save();
+              resize();
+            },
+          ],
+          [
+            "REDUCED MOTION",
+            prefs.reduced ? "On" : "Off",
+            () => {
+              prefs.reduced = !prefs.reduced;
+              save();
+            },
+          ],
+        ];
+      }
       function settingsUI() {
         rect(0, 0, W, H, "#101214dc");
         let w = Math.min(480, W - 56),
@@ -7413,46 +7479,8 @@
         rect(x - 22, y - 22, w + 44, 494, "#242628");
         heading("CABINET OPTIONS", "Settings", x, y + 15);
         let yy = y + 98;
-        row("SOUND", prefs.sound ? "On" : "Off", x, yy, w, () => {
-          prefs.sound = !prefs.sound;
-          save();
-          if (prefs.sound) soundOn();
-          else if (master) master.gain.value = 0;
-        });
-        row(
-          "VOLUME",
-          Math.round(prefs.volume * 100) + "%",
-          x,
-          yy + 46,
-          w,
-          () => {
-            prefs.volume = mod(Math.round(prefs.volume * 10) + 1, 11) / 10;
-            if (master) master.gain.value = prefs.volume * 0.4;
-            save();
-          },
-        );
-        row(
-          "DISPLAY",
-          prefs.aspect ? "Classic 4:3" : "Widescreen",
-          x,
-          yy + 92,
-          w,
-          () => {
-            prefs.aspect = !prefs.aspect;
-            save();
-            resize();
-          },
-        );
-        row(
-          "REDUCED MOTION",
-          prefs.reduced ? "On" : "Off",
-          x,
-          yy + 138,
-          w,
-          () => {
-            prefs.reduced = !prefs.reduced;
-            save();
-          },
+        cabinetOptions().forEach(([name, value, choose], i) =>
+          row(name, value, x, yy + i * 46, w, choose),
         );
         label("DRIVING CONTROLS", x, yy + 222, lime);
         txt(
@@ -7484,7 +7512,27 @@
           ).length
         );
       }
-      function hud() {
+      function damageDiagram(v, x, y, scale = 1) {
+        for (let [i, dx, dy, ww, hh] of [
+          [0, 0, -5, 14, 4],
+          [1, 0, 12, 14, 4],
+          [2, -4, 0, 4, 11],
+          [3, 14, 0, 4, 11],
+          [4, 1, 0, 12, 11],
+        ])
+          rect(
+            x + dx * scale,
+            y + dy * scale,
+            ww * scale,
+            hh * scale,
+            v.damage[i] > 0.5
+              ? "#f66f45"
+              : v.damage[i] > 0.14
+                ? "#ffc66c"
+                : "#9ba88b",
+          );
+      }
+      function rainOverlay() {
         if (rte.t[4] === "rain" && !prefs.reduced) {
           for (let i = 0; i < (quality > 0.8 ? 45 : 22); i++) {
             let x = mod(rand(i) * W - clock * 83, W),
@@ -7492,6 +7540,8 @@
             line2(x, y, x - 3, y + 13, "#bbcae74d", 1);
           }
         }
+      }
+      function hud() {
         let v = pl,
           pad = 24,
           free = runMode === 4;
@@ -7557,26 +7607,7 @@
           ink,
           10,
         );
-        let xx = x + 145,
-          yy = y + 99;
-        for (let [i, dx, dy, ww, hh] of [
-          [0, 0, -5, 14, 4],
-          [1, 0, 12, 14, 4],
-          [2, -4, 0, 4, 11],
-          [3, 14, 0, 4, 11],
-          [4, 1, 0, 12, 11],
-        ])
-          rect(
-            xx + dx,
-            yy + dy,
-            ww,
-            hh,
-            v.damage[i] > 0.5
-              ? "#f66f45"
-              : v.damage[i] > 0.14
-                ? "#ffc66c"
-                : "#9ba88b",
-          );
+        damageDiagram(v, x + 145, y + 99);
         if (runMode === 3)
           label("WRECK SCORE  " + Math.floor(score), pad, 110, lime);
         if (countdown > 0 || v.recovery > 0 || callTime > 0) {
@@ -7600,24 +7631,449 @@
               C.fill();
             }
         }
-        if ("ontouchstart" in window || navigator.maxTouchPoints) {
-          let y = H - 75;
-          for (let [id, s, x, yy] of [
-            ["ArrowLeft", "◀", 12, y],
-            ["ArrowRight", "▶", 80, y],
-            ["KeyW", "GAS", W - 73, y],
-            ["KeyS", "BRK", W - 140, y],
-            ["ShiftLeft", "BST", W - 73, y - 64],
-            ["recover", "R", 12, 100],
-            ["pause", "Ⅱ", W - 70, 100],
-          ]) {
-            rect(x, yy, 59, 56, "#292b2cbe");
-            txt(s, x + 30, yy + 35, 17, ink, { align: "center" });
-            region(id, x, yy, 59, 56, () => {
-              if (id === "recover") manual();
-              if (id === "pause") pause();
-            });
+      }
+      // The touch surface uses CSS pixels, independently of the desktop canvas scale.
+      const drivePads = new Set(["ArrowLeft", "ArrowRight", "KeyW", "KeyS", "ShiftLeft", "Space"]);
+      const pendingTaps = new Map();
+      let touchDevice = false;
+      const safe = { left: 0, top: 0, right: 0, bottom: 0 };
+
+      function touchHas(id, contacts = touches) {
+        for (const held of contacts.values()) if (held === id) return true;
+        return false;
+      }
+      function panel(x, y, w, h, radius, fill, edge) {
+        C.beginPath();
+        if (C.roundRect) C.roundRect(x + 0.75, y + 0.75, w - 1.5, h - 1.5, radius);
+        else C.rect(x + 0.75, y + 0.75, w - 1.5, h - 1.5);
+        C.fillStyle = fill;
+        C.fill();
+        if (edge) {
+          C.strokeStyle = edge;
+          C.lineWidth = 1.5;
+          C.stroke();
+        }
+      }
+      function touchPad(id, name, x, y, w, h, accent, action) {
+        const held = touchHas(id) || touchHas(id, pendingTaps);
+        const steer = id === "ArrowLeft" || id === "ArrowRight";
+        const primary = steer || id === "KeyW" || id === "KeyS";
+        const color = held ? dark : accent;
+        const face = id === "KeyW" ? "#26351aef" : id === "KeyS" ? "#382b27ef" : "#151c21eb";
+        panel(x, y, w, h, primary ? 14 : 9, held ? accent : face, held ? ink : accent);
+        const cx = x + w / 2,
+          cy = y + h / 2;
+        if (steer) {
+          const sign = id === "ArrowLeft" ? -1 : 1;
+          C.save();
+          C.translate(cx, cy);
+          C.scale(sign, 1);
+          poly(
+            [
+              [-10, -12],
+              [1, -12],
+              [13, 0],
+              [1, 12],
+              [-10, 12],
+              [1, 0],
+            ],
+            color,
+          );
+          C.restore();
+        } else if (id === "pause") {
+          rect(cx - 7, cy - 8, 5, 16, color);
+          rect(cx + 2, cy - 8, 5, 16, color);
+        } else {
+          if (primary) {
+            // Pedal treads also identify the main pedals at a glance.
+            for (let i = -1; i <= 1; i++) {
+              const xx = cx + i * 6;
+              line2(xx - 2, cy - 7, xx + 2, cy - 16, color, 2.5);
+            }
+          } else {
+            C.save();
+            C.translate(cx, cy - 8);
+            C.strokeStyle = color;
+            C.lineWidth = 2;
+            C.lineCap = "round";
+            if (id === "camera") {
+              C.strokeRect(-8, -4, 16, 10);
+              C.beginPath();
+              C.arc(0, 1, 2.5, 0, TAU);
+              C.stroke();
+              rect(-4, -6.5, 7, 2.5, color);
+            } else if (id === "recover") {
+              C.beginPath();
+              C.arc(0, 0, 6, -2.8, 1.35);
+              C.stroke();
+              poly(
+                [
+                  [-8, -6],
+                  [-8, 1],
+                  [-2, -2],
+                ],
+                color,
+              );
+            } else if (id === "ShiftLeft") {
+              for (const dy of [-3, 3]) {
+                line2(-7, dy + 2, 0, dy - 2, color, 2.5);
+                line2(0, dy - 2, 7, dy + 2, color, 2.5);
+              }
+            } else {
+              for (const dx of [-3, 3]) {
+                C.beginPath();
+                C.moveTo(dx + 3, -6);
+                C.bezierCurveTo(dx - 8, -1, dx + 7, 1, dx - 4, 6);
+                C.stroke();
+              }
+            }
+            C.restore();
           }
+          txt(name, cx, cy + (primary ? 13 : 14), primary ? 16 : 13, color, {
+            align: "center",
+            skew: primary,
+            weight: 900,
+          });
+        }
+        region(id, x, y, w, h, action);
+      }
+      function thumbLayout(w, h) {
+        const margin = Math.min(18, Math.round(w * 0.025));
+        const primaryH = clamp(h * 0.19, 62, 85);
+        const secondaryH = clamp(h * 0.12, 46, 54);
+        return { margin, primaryH, secondaryH, deck: margin + primaryH + 6 + secondaryH + 9 };
+      }
+      function touchRace(w, h) {
+        const gap = 6,
+          { margin, primaryH, secondaryH, deck } = thumbLayout(w, h);
+        // Two explicit thumb clusters always fit, including a 320px portrait phone.
+        const unit = Math.min(96, (w - 2 * margin - 3 * gap - 12) / 4);
+        const bottom = h - margin,
+          y = bottom - primaryH;
+        const upper = y - gap - secondaryH,
+          rx = w - margin - 2 * unit - gap;
+        const wide = rx - (margin + 2 * unit + gap) >= 136;
+        const fade = C.createLinearGradient(0, upper - 25, 0, h);
+        fade.addColorStop(0, "transparent");
+        fade.addColorStop(1, "#0e151aca");
+        rect(0, upper - 25, w, h - upper + 25, fade);
+        if (w < h) {
+          rect(-safe.left, h - deck, winW, deck + safe.bottom, "#151c21");
+          rect(-safe.left, h - deck, winW, 1, "#57615d");
+        }
+        const top = margin;
+        const free = runMode === 4,
+          solo = runMode === 2;
+        const statsW = Math.min(w - 2 * margin - 52, free ? 202 : 264);
+        panel(margin, top, statsW, 50, 8, "#11181de8");
+        const sx = margin + 10,
+          sy = top + 15;
+        label(free ? "FREE DRIVE" : solo ? "BEST" : "POS", sx, sy, lime, 9);
+        const best = prefs.records["2-" + routeId];
+        txt(
+          free ? rte.t[1] : solo ? (Number.isFinite(best) ? fmt(best) : "—") : ord(rank()).toUpperCase(),
+          sx,
+          sy + 24,
+          free ? 18 : 20,
+          ink,
+          { weight: 950, skew: true },
+        );
+        if (!free) {
+          const end = margin + statsW - 10;
+          if (!solo) {
+            label(rte.open ? "GATE" : "LAP", sx + 55, sy, muted, 9);
+            txt(rte.open ? pl.gate + "/8" : Math.min(3, pl.lap + 1) + "/3", sx + 55, sy + 23, 18, ink);
+          }
+          txt("TIME", end, sy, 10, muted, { align: "right", mono: true });
+          txt(fmt(elapsed + pl.penalty), end, sy + 23, 17, ink, { align: "right", mono: true });
+        }
+        const mapSize = clamp(h * 0.16, 54, 88);
+        const mapX = w - margin - mapSize;
+        panel(mapX, top + 52, mapSize, mapSize, 8, "#141b20aa");
+        routeMap(rte, mapX + 2, top + 54, mapSize - 4, mapSize - 4, "#f4edd3", 1.7, true);
+        if (runMode === 3) txt("WRECK  " + Math.floor(score), sx, top + 69, 12, lime, { mono: true });
+        const meterW = 132,
+          mx = (w - meterW) / 2;
+        const my = wide ? bottom - 55 : upper - 61;
+        panel(mx, my, meterW, 55, 8, "#11181deb");
+        txt(String(Math.round(Math.abs(pl.speed) * 3.6)), mx + 9, my + 30, 29, ink, {
+          weight: 950,
+          skew: true,
+        });
+        txt("KM/H", mx + 69, my + 29, 10, muted);
+        txt(pl.speed < -0.5 ? "R" : "G" + pl.gear, mx + 123, my + 15, 11, ink, { align: "right" });
+        damageDiagram(pl, mx + 111, my + 27, 0.64);
+        txt("BOOST", mx + 9, my + 47, 9, lime, { mono: true });
+        rect(mx + 45, my + 40, 76, 6, "#515950");
+        rect(mx + 45, my + 40, (76 * pl.boost) / 100, 6, lime);
+
+        touchPad("ArrowLeft", "", margin, y, unit, primaryH, ink);
+        touchPad("ArrowRight", "", margin + unit + gap, y, unit, primaryH, ink);
+        touchPad("KeyS", "BRAKE", rx, y, unit, primaryH, "#ffaf90");
+        touchPad("KeyW", "GAS", rx + unit + gap, y, unit, primaryH, lime);
+        touchPad("Space", "DRIFT", rx, upper, unit, secondaryH, "#a4deda");
+        touchPad("ShiftLeft", "BOOST", rx + unit + gap, upper, unit, secondaryH, "#ffcb69");
+        touchPad("pause", "", w - margin - 46, top, 46, 46, ink, pause);
+        // Utilities sit above the driving surface so sliding a pedal never activates them.
+        touchPad("camera", "VIEW", margin, upper, unit, secondaryH, muted, () => {
+          cam = mod(cam + 1, 3);
+        });
+        touchPad("recover", "RECOVER", margin + unit + gap, upper, unit, secondaryH, muted, manual);
+        if (countdown > 0 || pl.recovery > 0 || callTime > 0) {
+          const cy = clamp(h * 0.34, top + 78, upper - 52);
+          const message =
+            countdown > 0
+              ? String(Math.ceil(countdown))
+              : pl.recovery > 0
+                ? "RECOVER  " + Math.ceil(pl.recovery)
+                : callout;
+          C.save();
+          C.shadowColor = "#10161b";
+          C.shadowBlur = 6;
+          txt(
+            message,
+            w / 2,
+            cy,
+            countdown > 0 ? 55 : Math.min(24, (w / Math.max(1, message.length)) * 1.5),
+            ink,
+            { align: "center", weight: 950, skew: true },
+          );
+          C.restore();
+          if (countdown > 0) {
+            for (let i = 0; i < 3; i++)
+              panel(
+                w / 2 - 23 + i * 17,
+                cy + 9,
+                13,
+                6,
+                2,
+                i < 4 - Math.ceil(countdown) ? "#ff8567" : "#303537",
+              );
+          }
+        }
+      }
+      function touchMenuButton(item, x, y, w, h) {
+        const [id, name, fn, value, primary] = item;
+        const pressed = touchHas(id, pendingTaps);
+        const bg = primary ? lime : pressed ? "#404a4c" : "#212a2ef5";
+        panel(x, y, w, h, 7, bg, primary ? lime : "#526063");
+        if (value !== undefined) {
+          txt(name, x + 11, y + h / 2 - 3, 10, muted, { mono: true });
+          txt(value, x + 11, y + h / 2 + 15, Math.min(17, (w - 25) / (value.length * 0.57)), ink);
+        } else {
+          txt(
+            name,
+            x + 12,
+            y + h / 2 + 5,
+            Math.min(16, (w - 23) / (name.length * 0.64)),
+            primary ? dark : ink,
+            { weight: 900, skew: primary },
+          );
+        }
+        region(id, x, y, w, h, fn);
+      }
+      function touchMenu(w, h) {
+        const margin = h < 350 ? 9 : clamp(w * 0.04, 10, 22);
+        const wide = w > h * 1.24;
+        const surface = screen === "garage" && !modal;
+        const columnW = Math.min(w - 2 * margin, surface && wide ? w * 0.43 : 590);
+        const x = surface && wide ? margin : (w - columnW) / 2;
+        let title,
+          eyebrow,
+          detail,
+          items,
+          art = null;
+        if (modal) {
+          title = "Settings";
+          eyebrow = "CABINET OPTIONS";
+          items = cabinetOptions().map(([name, value, fn]) => [name, name, fn, value]);
+          items.push([
+            "close",
+            "DONE",
+            () => {
+              modal = "";
+              focus = -1;
+            },
+            undefined,
+            true,
+          ]);
+        } else if (screen === "setup") {
+          const cup = prefs.mode === 1;
+          const tr = routes[cup ? prefs.cup * 4 + cupState().round : prefs.track];
+          title = "Race setup";
+          eyebrow = "DUSK RUSH ’64";
+          detail = cup ? "Round " + (cupState().round + 1) + " of 4" : tr.t[1];
+          items = raceOptions(cup, tr).map(([name, value, fn]) => [name, name, fn, value]);
+          items.push(
+            ["settings", "Settings", settings],
+            ["back", "Back", () => change("title")],
+            ["race", "LAUNCH RACE", startRace, undefined, true],
+          );
+        } else if (screen === "garage") {
+          const id = prefs.car,
+            car = cars[id];
+          title = names[id];
+          eyebrow = groups[Math.floor(id / 6)].toUpperCase() + "   /   " + (id + 1) + " OF 30";
+          detail = Math.round(car[6] * 3.6) + " km/h   ·   " + car[9] + " kg";
+          items = [
+            ["prev", "‹  Previous", () => cycle(-1)],
+            ["next", "Next  ›", () => cycle(1)],
+            [
+              "paint",
+              "Paint",
+              () => {
+                prefs.paint = mod(prefs.paint + 1, paints.length);
+                save();
+              },
+              prefs.paint + 1 + " / " + paints.length,
+            ],
+            ["select", "SELECT CAR", () => change("setup"), undefined, true],
+          ];
+        } else if (screen === "tracks") {
+          const tr = routes[prefs.track],
+            group = Math.floor(prefs.track / 4);
+          title = tr.t[0];
+          eyebrow = "TRACK ATLAS   /   " + (prefs.track + 1) + " OF 20";
+          detail = tr.t[1] + "   ·   " + (tr.len / 1000).toFixed(2) + " km";
+          art = tr;
+          items = tracks.slice(group * 4, group * 4 + 4).map((t, i) => {
+            const id = group * 4 + i;
+            return [
+              "track" + id,
+              (id === prefs.track ? "•  " : "") + t[0],
+              () => {
+                prefs.track = id;
+                save();
+              },
+            ];
+          });
+          const page = (n) => {
+            prefs.track = mod(group + n, 5) * 4;
+            save();
+          };
+          items.push(
+            ["prev", "‹  Prev four", () => page(-1)],
+            ["next", "Next four  ›", () => page(1)],
+            ["select", "SELECT COURSE", () => change("setup"), undefined, true],
+          );
+        } else if (screen === "pause") {
+          title = "Paused";
+          eyebrow = rte.t[0].toUpperCase();
+          items = [
+            ["action0", "RESUME", pause, undefined, true],
+            ["action1", "Settings", settings],
+            ["action2", "Restart race", startRace],
+            ["action3", "Race setup", () => change("setup")],
+          ];
+        } else if (screen === "results" && results) {
+          const r = results;
+          title = runMode === 1 && r.round === 4 ? "Cup complete" : "Finish line";
+          eyebrow = rte.t[0].toUpperCase();
+          detail =
+            (runMode === 2 ? "Solo" : ord(r.rank)) +
+            "   /   " +
+            fmt(r.time) +
+            (r.best ? "   ·   New best" : "");
+          if (runMode === 1)
+            detail +=
+              "   ·   " +
+              r.total +
+              " pts" +
+              (r.round === 4
+                ? "   ·   " + (r.total >= 40 ? "Gold" : r.total >= 24 ? "Silver" : "Bronze")
+                : "");
+          if (runMode === 3) detail += "   ·   " + Math.floor(score) + " wreck score";
+          items = [
+            [
+              "again",
+              runMode === 1 && r.round < 4 ? "NEXT RACE" : "RACE AGAIN",
+              startRace,
+              undefined,
+              true,
+            ],
+            ["setup", "Race setup", () => change("setup")],
+          ];
+        } else {
+          title = "DUSK RUSH ’64";
+          eyebrow = "DUSKWORKS   /   WEST COAST ARCADE";
+          detail = "San Francisco, California";
+          items = [
+            ["start", "START ENGINE", () => change("setup"), undefined, true],
+            ["settings", "Settings", settings],
+          ];
+        }
+        // The shorter landscape viewport gets two columns; the showroom reserves room for the model.
+        const cols = surface || wide || (items.length > 4 && h < 550) ? 2 : 1;
+        const rows = Math.ceil(items.length / cols),
+          gap = h < 350 ? 4 : 6;
+        const shortHeader = h < 350 && rows >= 3;
+        const showSpecs = surface && h >= 350;
+        const header = shortHeader ? 45 : showSpecs ? 137 : detail ? 79 : 60;
+        const rowH = clamp((h - header - 2 * margin - (rows - 1) * gap) / rows, 44, 58);
+        const blockH = header + rows * rowH + (rows - 1) * gap;
+        const y =
+          (surface && !wide) || (screen === "title" && !modal)
+            ? Math.max(margin, h - margin - blockH)
+            : Math.max(margin, (h - blockH) / 2);
+        const cw = (columnW - (cols - 1) * gap) / cols;
+        if (!surface && (screen !== "title" || modal)) rect(0, 0, w, h, "#10181ac9");
+        panel(x - 6, y - 7, columnW + 12, blockH + 14, 12, "#161d20e8");
+        const headX = x + 5;
+        label(eyebrow, headX, y + 11, lime, 10);
+        txt(
+          title,
+          headX,
+          y + (shortHeader ? 36 : 45),
+          Math.min(shortHeader ? 25 : 34, (columnW - (art ? 76 : 13)) / (title.length * 0.67)),
+          ink,
+          { skew: true, weight: 950 },
+        );
+        if (detail && !shortHeader)
+          txt(detail, headX, y + 65, Math.min(13, (columnW - 13) / (detail.length * 0.56)), muted);
+        if (showSpecs) {
+          const car = cars[prefs.car];
+          const stats = [
+            ["SPEED", car[6] / 90],
+            ["ACCEL.", car[7] / 27],
+            ["GRIP", car[8] / 10],
+            ["WEIGHT", car[9] / 2580],
+            ["DURABILITY", car[10] / 185],
+            ["STUNT", car[11] / 14],
+          ];
+          stats.forEach(([name, value], i) => {
+            const span = (columnW - 10) / 3,
+              xx = headX + (i % 3) * span,
+              yy = y + 86 + Math.floor(i / 3) * 24;
+            txt(name, xx, yy, 10, muted, { mono: true });
+            rect(xx, yy + 4, span - 10, 3, "#445150");
+            rect(xx, yy + 4, (span - 10) * Math.min(1, value), 3, lime);
+          });
+        }
+        if (art) routeMap(art, x + columnW - 64, y, 64, shortHeader ? 40 : 52, lime, 2);
+        items.forEach((item, i) => {
+          const xx = x + (i % cols) * (cw + gap),
+            yy = y + header + Math.floor(i / cols) * (rowH + gap);
+          const fullLast = i === items.length - 1 && i % cols === 0;
+          touchMenuButton(item, xx, yy, fullLast ? columnW : cw, rowH);
+          if (surface && item[0] === "paint")
+            panel(xx + cw - 35, yy + rowH / 2 - 10, 23, 20, 4, paints[prefs.paint], ink);
+        });
+      }
+      function drawTouchSurface() {
+        C.save();
+        C.scale(1 / S, 1 / S);
+        C.translate(safe.left, safe.top);
+        const w = winW - safe.left - safe.right,
+          h = winH - safe.top - safe.bottom;
+        if (screen === "race" && !modal) touchRace(w, h);
+        else touchMenu(w, h);
+        C.restore();
+        // All input devices use the same hit regions as the canvas artwork.
+        for (const b of buttons) {
+          b.x = (safe.left + b.x) / S;
+          b.y = (safe.top + b.y) / S;
+          b.w /= S;
+          b.h /= S;
         }
       }
       function overlay(title, sub, items) {
@@ -7651,19 +8107,42 @@
       function clearControls() {
         keys.clear();
         touches.clear();
+        pendingTaps.clear();
+        orbitDrag = null;
         padState = {};
       }
       function resize() {
-        let aw = innerWidth,
-          ah = innerHeight;
-        if (prefs.aspect) aw = Math.min(aw, (ah * 4) / 3);
+        touchDevice = navigator.maxTouchPoints > 0 || matchMedia("(pointer: coarse)").matches;
+        const classicW = Math.min(innerWidth, (innerHeight * 4) / 3);
+        const classicH = (classicW * 3) / 4;
+        const classicCab = prefs.aspect && !touchDevice;
         let main = document.querySelector("main");
-        main.style.width = aw + "px";
-        main.style.height =
-          (prefs.aspect ? Math.min(ah, (aw * 3) / 4) : ah) + "px";
+        main.style.width = (classicCab ? classicW : innerWidth) + "px";
+        main.style.height = (classicCab ? classicH : innerHeight) + "px";
         let r = ui.getBoundingClientRect();
+        if (r.width !== winW || r.height !== winH) {
+          touches.clear();
+          pendingTaps.clear();
+          orbitDrag = null;
+        }
+        if (touchDevice) {
+          const css = getComputedStyle(main);
+          for (const side of Object.keys(safe))
+            safe[side] = parseFloat(css.getPropertyValue("--safe-" + side)) || 0;
+        }
         winW = r.width;
         winH = r.height;
+        const usableW = winW - safe.left - safe.right;
+        const usableH = winH - safe.top - safe.bottom;
+        const portraitRace =
+          touchDevice && usableW < usableH && ["race", "pause", "results"].includes(screen);
+        const sceneH = portraitRace ? winH - thumbLayout(usableW, usableH).deck - safe.bottom : winH;
+        const worldW = prefs.aspect ? Math.min(winW, (sceneH * 4) / 3) : winW;
+        const worldH = prefs.aspect ? (worldW * 3) / 4 : sceneH;
+        world.style.width = worldW + "px";
+        world.style.height = worldH + "px";
+        world.style.top = (sceneH - worldH) / 2 + "px";
+        world.style.bottom = "auto";
         S = Math.min(winW / 730, winH / 690, 1.4);
         W = winW / S;
         H = winH / S;
@@ -7678,7 +8157,7 @@
                 ? 360
                 : 300),
         );
-        world.width = Math.round((world.height * winW) / winH);
+        world.width = Math.round((world.height * worldW) / worldH);
         C.setTransform(ui.width / W, 0, 0, ui.height / H, 0, 0);
       }
       function finishUI() {
@@ -7752,6 +8231,11 @@
       function drawUI() {
         C.clearRect(0, 0, W, H);
         buttons = [];
+        if (screen === "race") rainOverlay();
+        if (touchDevice && (screen === "race" || winW <= 1024 || winH <= 700)) {
+          drawTouchSurface();
+          return;
+        }
         if (screen === "title") title();
         else if (screen === "setup") setup();
         else if (screen === "garage") garage();
@@ -7847,12 +8331,17 @@
         }
       });
       addEventListener("resize", resize);
-      function locate(e) {
-        let r = ui.getBoundingClientRect(),
-          x = (e.clientX - r.left) / S,
+      const cab = document.getElementById("cab");
+      cab.addEventListener("contextmenu", (e) => e.preventDefault());
+      cab.addEventListener("selectstart", (e) => e.preventDefault());
+      function locate(e, previous) {
+        const r = ui.getBoundingClientRect();
+        const x = (e.clientX - r.left) / S,
           y = (e.clientY - r.top) / S;
-        return buttons.find(
-          (b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h,
+        const inside = (b, extra) =>
+          x >= b.x - extra && x <= b.x + b.w + extra && y >= b.y - extra && y <= b.y + b.h + extra;
+        return (
+          buttons.find((b) => inside(b, 0)) || buttons.find((b) => b.id === previous && inside(b, 8 / S))
         );
       }
       ui.onpointermove = (e) => {
@@ -7861,21 +8350,23 @@
           orbitDrag.x = e.clientX;
           return;
         }
-        let b = locate(e);
-        hover = b?.id || "";
-        ui.style.cursor = b ? "pointer" : "default";
+        if (touches.has(e.pointerId)) {
+          const target = locate(e, touches.get(e.pointerId));
+          touches.set(e.pointerId, drivePads.has(target?.id) ? target.id : "");
+          return;
+        }
+        if (e.pointerType !== "touch") {
+          const b = locate(e);
+          hover = b?.id || "";
+          ui.style.cursor = b ? "pointer" : "default";
+        }
       };
       ui.onpointerdown = (e) => {
-        let b = locate(e);
-        if (
-          !b &&
-          screen === "garage" &&
-          !modal &&
-          (winW < winH && H >= 1100
-            ? (e.clientY - ui.getBoundingClientRect().top) / S < H * 0.53
-            : (e.clientX - ui.getBoundingClientRect().left) / S >
-              Math.min(370, W * 0.44) + 68)
-        ) {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        if (!document.hasFocus()) window.focus();
+        const b = locate(e);
+        if (!b && screen === "garage" && !modal) {
           orbitDrag = { id: e.pointerId, x: e.clientX };
           ui.setPointerCapture(e.pointerId);
           return;
@@ -7883,22 +8374,31 @@
         if (!b) return;
         ui.setPointerCapture(e.pointerId);
         focus = -1;
-        if (screen === "race") {
-          touches.set(e.pointerId, b.id);
-          b.fn();
-        } else {
-          b.fn();
-          save();
-        }
+        if (screen === "race" && drivePads.has(b.id)) touches.set(e.pointerId, b.id);
+        else pendingTaps.set(e.pointerId, b.id);
         drawUI();
       };
-      ui.onpointerup = ui.onpointercancel = (e) => {
+      function releasePointer(e) {
         touches.delete(e.pointerId);
+        pendingTaps.delete(e.pointerId);
         if (orbitDrag?.id === e.pointerId) {
           orbitDrag = null;
           orbitHold = clock + 3;
         }
+      }
+      ui.onpointerup = (e) => {
+        const tap = pendingTaps.get(e.pointerId);
+        releasePointer(e);
+        if (tap) {
+          const b = locate(e);
+          if (b?.id === tap) {
+            b.fn();
+            save();
+          }
+        }
+        drawUI();
       };
+      ui.onpointercancel = ui.onlostpointercapture = releasePointer;
       let padButtons = [];
       function gamepad() {
         let p = navigator.getGamepads?.()[0];

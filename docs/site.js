@@ -186,6 +186,8 @@ byId("embed-start").onclick = () => {
   stop.hidden = false;
   frame.addEventListener("load", () => frame.focus(), { once: true });
   byId("player").append(frame);
+  if (matchMedia("(pointer: coarse)").matches)
+    byId("player").scrollIntoView({ block: "center", behavior: "instant" });
 };
 stop.onclick = () => {
   byId("play-frame")?.remove();

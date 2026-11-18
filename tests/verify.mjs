@@ -1,3 +1,4 @@
+import { verifyTouch } from "./touch.mjs";
 import { raceConditions } from "./race-conditions.mjs";
 import { auditCourse } from "./world-audit.mjs";
 import { verifyCameraAndContacts } from "./camera.mjs";
@@ -109,6 +110,11 @@ async function tests() {
   await rpc("Page.enable");
   await rpc("Runtime.enable");
   await reload();
+  if (process.argv.includes("--touch")) {
+    await verifyTouch(rpc, evalJS);
+    assert.deepEqual(errors, []);
+    return;
+  }
   await shot("title");
   await evalJS(
     "keydown({code:'Enter',preventDefault(){}});drawUI();activate();testMode=true",
@@ -372,6 +378,7 @@ async function tests() {
   );
   await evalJS("keys.add('KeyW');window.dispatchEvent(new Event('blur'))");
   assert(await evalJS("screen==='pause'&&keys.size===0&&touches.size===0"));
+  await verifyTouch(rpc, evalJS);
   await rpc("Page.addScriptToEvaluateOnNewDocument", {
     source:
       "Object.defineProperty(window,'localStorage',{get(){throw new DOMException('Unavailable','SecurityError')}})",

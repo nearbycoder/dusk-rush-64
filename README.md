@@ -20,11 +20,15 @@ Choose a mode, select a course and vehicle, then launch the race. All 20 courses
 
 Drag the car in the showroom or press Q and E to rotate it.
 
-A standard gamepad uses its left stick to steer, triggers to accelerate and brake, left shoulder for boost, and the west face button for the handbrake. The north face button changes camera, Select recovers, and Start pauses. Touch devices display simultaneous on-screen controls. Sound is off initially and can be enabled in the header or Settings.
+A standard gamepad uses its left stick to steer, triggers to accelerate and brake, left shoulder for boost, and the west face button for the handbrake. The north face button changes camera, Select recovers, and Start pauses. Sound is off initially and can be enabled in Settings.
+
+On a touchscreen, steer with your left thumb and hold Gas with your right. Slide between the arrows to change direction, or from Gas to Boost or Drift to keep the throttle open. Hold Brake to slow down and reverse. Tap View to cycle cameras, Recover to return to the road, or the pause icon to open the menu.
 
 ## Verification
 
 Run `node tests/verify.mjs` with Node 22+ and Chrome installed. Set `CHROME` to the browser executable if it is outside the detected locations. The test launches a temporary headless browser profile, exercises the fixed-timestep simulation and writes PNG screenshots to `captures/`. Each numbered car and track capture follows the order in the selectors. The suite also reads the uploaded WebGL triangles and checks the camera near plane and moving car bodies against the rendered courses. It runs all 20 tracks at each difficulty and completes all five cups.
+
+Run `node tests/verify.mjs --touch` for the mobile checks alone. They exercise simultaneous steering and pedals, thumb slides, interrupted gestures, menu navigation, portrait and landscape layouts, and safe-area insets.
 
 The revised courses start a new set of times and ghosts. The game carries settings, medals and cup progress forward and preserves the previous save under its original local storage key.
 
