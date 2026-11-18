@@ -28,7 +28,9 @@ function showRotation() {
   rotation.hidden = false;
 }
 function rotateTo(index) {
-  rotationIndex = ((index % 24) + 24) % 24;
+  const next = ((index % 24) + 24) % 24;
+  if (next === rotationIndex) return;
+  rotationIndex = next;
   const preset = Object.keys(presetFrames).find((name) => presetFrames[name] === rotationIndex);
   if (preset) return modelAngle(preset);
   view = null;
@@ -56,7 +58,7 @@ turntable.addEventListener("pointerdown", (event) => {
   turnDrag = { id: event.pointerId, x: event.clientX, y: event.clientY, initial: rotationIndex };
   turntable.setPointerCapture(event.pointerId);
 });
-turntable.addEventListener("pointermove", (event) => {
+function trackTurn(event) {
   if (turnDrag?.id !== event.pointerId) return;
   const dx = event.clientX - turnDrag.x, dy = event.clientY - turnDrag.y;
   if (!turntable.classList.contains("dragging")) {
@@ -66,8 +68,15 @@ turntable.addEventListener("pointermove", (event) => {
   }
   const step = Math.max(11, turntable.clientWidth / 27);
   rotateTo(turnDrag.initial + Math.round(dx / step));
+}
+turntable.addEventListener("pointermove", trackTurn);
+turntable.addEventListener("pointerup", (event) => {
+  if (turnDrag?.id !== event.pointerId) return;
+  // A browser can deliver the release before its next coalesced movement sample.
+  trackTurn(event);
+  releaseTurntable();
 });
-for (const type of ["pointerup", "pointercancel", "lostpointercapture"])
+for (const type of ["pointercancel", "lostpointercapture"])
   turntable.addEventListener(type, (event) => {
     if (turnDrag?.id === event.pointerId) releaseTurntable();
   });

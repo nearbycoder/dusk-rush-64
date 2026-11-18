@@ -60,12 +60,17 @@ export async function verifyArcadeSite(rpc, evaluate, base) {
     }
     return true;
   })()`), "Rotating all 30 models with the keyboard");
-  const handle = await evaluate(`(()=>{turntable.scrollIntoView({block:"center",behavior:"instant"});
+  const handle = await evaluate(`(async()=>{turntable.scrollIntoView({block:"center",behavior:"instant"});
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
     const r=turntable.getBoundingClientRect();return {x:r.x+r.width*.4,y:r.y+r.height*.5,w:r.width};})()`);
   await rpc("Input.dispatchMouseEvent", { type:"mousePressed", x:handle.x, y:handle.y, button:"left", clickCount:1 });
   await rpc("Input.dispatchMouseEvent", { type:"mouseMoved", x:handle.x+handle.w*.27, y:handle.y, buttons:1 });
   await rpc("Input.dispatchMouseEvent", { type:"mouseReleased", x:handle.x+handle.w*.27, y:handle.y, button:"left" });
   await ready("rotationIndex>0 && !turnDrag && !rotation.hidden");
+  const beforeRelease = await evaluate("rotationIndex");
+  await rpc("Input.dispatchMouseEvent", {type:"mousePressed",x:handle.x,y:handle.y,button:"left",clickCount:1});
+  await rpc("Input.dispatchMouseEvent", {type:"mouseReleased",x:handle.x+handle.w*.12,y:handle.y,button:"left"});
+  assert.notEqual(await evaluate("rotationIndex"), beforeRelease, "Quick release lost the last drag position");
   assert(
     await evaluate(`(async () => {
     const selector=byId("track"), image=byId("course-photo");
